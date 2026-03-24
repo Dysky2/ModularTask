@@ -3,6 +3,7 @@ package net.edu.modulartask.user;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import net.edu.modulartask.organization.OrganizationUnit;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -32,8 +33,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
-    @Column(name = "unit_id")
-    private UUID unitId;
+    @ManyToOne
+    @JoinColumn(name = "unit_id")
+    private OrganizationUnit organizationUnit;
 
     @Column(name = "is_active")
     private boolean isActive;
