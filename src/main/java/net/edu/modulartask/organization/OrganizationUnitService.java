@@ -1,58 +1,82 @@
 package net.edu.modulartask.organization;
 
+import net.edu.modulartask.exceptions.CyclicHierarchyException;
+import net.edu.modulartask.exceptions.OrganizationUnitNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.repository.core.support.RepositoryMethodInvocationListener;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class OrganizationUnitService {
+
     @Autowired
     OrganizationUnitRepository organizationUnitRepository;
 
-    public OrganizationUnit createUnit(String newUnitName, UUID parentId) throws IllegalArgumentException {
+    public OrganizationUnit findByUnitId(UUID parentId) {
+        return organizationUnitRepository.findByUnitId(parentId).orElseThrow(
+                () -> new OrganizationUnitNotFoundException("Parent not found"));
+    }
+
+    public OrganizationUnit createUnit(String newUnitName, UUID parentId) {
         OrganizationUnit organizationUnit = new OrganizationUnit();
+
+        if(newUnitName.isBlank()) {
+            throw new IllegalArgumentException("Unit name is empty");
+        }
 
         organizationUnit.setName(newUnitName);
 
-        if(organizationUnitRepository.existsByName(newUnitName)) {
-            throw new IllegalArgumentException("This unit exists");
+        organizationUnit.setCreateAt(LocalDateTime.now());
+
+        if(parentId != null) {
+            OrganizationUnit parent = findByUnitId(parentId);
+
+            organizationUnit.setParent(parent);
         }
 
-        OrganizationUnit parent = organizationUnitRepository.getOrganizationUnitByUnitId(parentId);
+        return organizationUnitRepository.save(organizationUnit);
+    }
 
-        if(organizationUnit.equals(parent)) {
-            throw new IllegalArgumentException("Unit cannot be parent for yourself");
+    public OrganizationUnit moveUnit(UUID unitId, UUID parentId) {
+        if(unitId.equals(parentId)) {
+            throw new CyclicHierarchyException("Parent unit is the same as current");
         }
+
+        OrganizationUnit organizationUnit = findByUnitId(unitId);
+
+        OrganizationUnit parent = findByUnitId(parentId);
 
         organizationUnit.setParent(parent);
 
-        organizationUnitRepository.save(organizationUnit);
-
-        return organizationUnit;
+        return organizationUnitRepository.save(organizationUnit);
     }
 
-    public void updateParent(UUID parentId, UUID parentId2) {
+    public List<OrganizationUnit> getDirectChildren(UUID unitId) {
+           OrganizationUnit parent = findByUnitId(unitId);
 
-        OrganizationUnit parent_old = organizationUnitRepository.getOrganizationUnitByUnitId(parentId);
+           return organizationUnitRepository.findByParent(parent);
+    }
 
-        if(parent_old == null) {
-            throw new IllegalArgumentException("This unit not exists");
+    public List<OrganizationUnit> getPathFromRoot(UUID unitId) {
+        OrganizationUnit organizationUnit = findByUnitId(unitId);
+
+        List<OrganizationUnit> list = new ArrayList<>();
+
+        list.add(organizationUnit);
+
+        while (organizationUnit.getParent() != null) {
+            organizationUnit = organizationUnit.getParent();
+
+            list.add(organizationUnit);
         }
 
-        OrganizationUnit parent_new = organizationUnitRepository.getOrganizationUnitByUnitId(parentId2);
+        Collections.reverse(list);
 
-        if(parent_new == null) {
-            throw new IllegalArgumentException("This unit not exists");
-        }
-
-        if(parent_old.equals(parent_new)) {
-            throw new IllegalArgumentException("Unit cannot be parent for yourself");
-        }
-
-        parent_old.setParent(parent_new);
-
-        organizationUnitRepository.save(parent_old);
+        return list;
     }
 }
