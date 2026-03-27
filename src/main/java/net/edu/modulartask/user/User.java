@@ -1,6 +1,9 @@
 package net.edu.modulartask.user;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
 import lombok.Getter;
 import lombok.Setter;
 import net.edu.modulartask.organization.OrganizationUnit;
@@ -26,6 +29,8 @@ public class User {
     @Column(name = "last_name")
     private String lastName;
 
+    @NotBlank(message = "Email is mandatory")
+    @Email(message = "Email should be valid")
     private String email;
 
     private String password;
