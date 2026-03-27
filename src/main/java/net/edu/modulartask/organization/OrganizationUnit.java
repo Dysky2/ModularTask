@@ -1,10 +1,14 @@
 package net.edu.modulartask.organization;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "organization_units")
 public class OrganizationUnit {
