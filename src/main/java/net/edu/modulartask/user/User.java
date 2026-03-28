@@ -7,8 +7,11 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 import net.edu.modulartask.organization.OrganizationUnit;
+import net.edu.modulartask.tasks.Task;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -41,6 +44,9 @@ public class User {
     @ManyToOne
     @JoinColumn(name = "unit_id")
     private OrganizationUnit organizationUnit;
+
+    @ManyToMany(mappedBy = "assignees")
+    private Set<Task> assignedTasks = new HashSet<>();
 
     @Column(name = "is_active")
     private boolean isActive;
