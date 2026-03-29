@@ -1,5 +1,6 @@
 package net.edu.modulartask.organization;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,6 +22,7 @@ public class OrganizationUnit {
 
     @ManyToOne
     @JoinColumn(name = "parent_id")
+    @JsonIgnore
     private OrganizationUnit parent;
 
     @Column(name = "create_at")

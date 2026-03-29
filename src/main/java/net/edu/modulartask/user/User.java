@@ -1,5 +1,6 @@
 package net.edu.modulartask.user;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -43,9 +44,11 @@ public class User {
 
     @ManyToOne
     @JoinColumn(name = "unit_id")
+    @JsonIgnore
     private OrganizationUnit organizationUnit;
 
     @ManyToMany(mappedBy = "assignees")
+    @JsonIgnore
     private Set<Task> assignedTasks = new HashSet<>();
 
     @Column(name = "is_active")
