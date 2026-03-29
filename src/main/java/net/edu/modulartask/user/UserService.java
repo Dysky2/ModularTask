@@ -7,6 +7,7 @@ import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
 import net.edu.modulartask.organization.OrganizationUnit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +17,8 @@ import java.util.UUID;
 public class UserService {
     @Autowired
     UserRepository userRepository;
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -23,6 +26,10 @@ public class UserService {
 
     public User getUserById(UUID id) {
         return userRepository.getUserById(id);
+    }
+
+    public User getUserByUsername(String username) {
+        return userRepository.getUserByUsername(username);
     }
 
     public User findById(UUID id) {
@@ -33,6 +40,16 @@ public class UserService {
     public User findByUsername(String userName) {
         return userRepository.findByUsername(userName).orElseThrow(
                 () -> new UserNotFoundException("User with username: " + userName +  " does not exits"));
+    }
+
+    public void registerUser(User user) {
+        String planPassword = user.getPassword();
+
+        String hashedPassword = passwordEncoder.encode(planPassword);
+
+        user.setPassword(hashedPassword);
+
+        userRepository.save(user);
     }
 
     @Transactional
