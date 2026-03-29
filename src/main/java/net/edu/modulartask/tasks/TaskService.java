@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +38,31 @@ public class TaskService {
     public Task findById(UUID taskId) {
         return taskRepository.findById(taskId).orElseThrow(
                 () -> new IllegalArgumentException("Task is not exist"));
+    }
+
+    public List<Task> getAllMyTask() {
+
+        // TODO
+        // trzeba du zaciagnac usera ktory jest zalogoany
+        Set<User> usersSet = new HashSet<>();
+
+        User user = userService.findById(UUID.fromString("d2ef2e2a-7e5d-492d-9b5f-d1b2c8706948"));
+
+        usersSet.add(user);
+
+        return taskRepository.findAllByAssignees(usersSet);
+    }
+
+    public List<Task> getAllTasksInPool() {
+        List<Task> tasks = taskRepository.findAll();
+
+        tasks.removeIf(task -> task.getStatus() != TaskStatus.IN_POOL);
+
+        return tasks;
+    }
+
+    public List<Task> getAllTasks() {
+        return taskRepository.findAll();
     }
 
     public Task createTask(String title, LocalDateTime deadline) {
