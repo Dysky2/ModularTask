@@ -1,5 +1,6 @@
 package net.edu.modulartask.subtask;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,7 +19,8 @@ public class SubtaskTemplate {
     private UUID id;
 
     @ManyToOne
-    @JoinColumn(name = "templete_id")
+    @JoinColumn(name = "template_id")
+    @JsonIgnore
     private TaskTemplate template;
 
     private String title;
