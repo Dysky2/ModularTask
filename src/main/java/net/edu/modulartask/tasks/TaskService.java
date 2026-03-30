@@ -1,5 +1,7 @@
 package net.edu.modulartask.tasks;
 
+import jakarta.servlet.http.HttpServletRequest;
+import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
 import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.subtask.SubtaskTemplate;
@@ -12,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -35,22 +36,22 @@ public class TaskService {
     @Autowired
     SubtaskTemplateService subtaskTemplateService;
 
+    @Autowired
+    JwtService jwtService;
+
     public Task findById(UUID taskId) {
         return taskRepository.findById(taskId).orElseThrow(
                 () -> new IllegalArgumentException("Task is not exist"));
     }
 
-    public List<Task> getAllMyTask() {
+    public List<Task> getAllMyTask(HttpServletRequest request) {
 
-        // TODO
-        // trzeba du zaciagnac usera ktory jest zalogoany
-        Set<User> usersSet = new HashSet<>();
+        String token = request.getHeader("Authorization").substring(7);
+        String username = jwtService.extractUsername(token);
 
-        User user = userService.findById(UUID.fromString("d2ef2e2a-7e5d-492d-9b5f-d1b2c8706948"));
+        User user = userService.findByUsername(username);
 
-        usersSet.add(user);
-
-        return taskRepository.findAllByAssignees(usersSet);
+        return taskRepository.findByAssigneesContaining(user);
     }
 
     public List<Task> getAllTasksInPool() {

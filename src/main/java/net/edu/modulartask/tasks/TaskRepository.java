@@ -17,4 +17,6 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByParentTask(Task parentTask);
 
     List<Task> findAllByAssignees(Set<User> assignees);
+
+    List<Task> findByAssigneesContaining(User user);
 }
