@@ -1,15 +1,14 @@
 package net.edu.modulartask.tasks;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import net.edu.modulartask.user.User;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Setter
 @Getter
@@ -34,6 +33,7 @@ public class Task {
 
     @ManyToOne
     @JoinColumn(name = "parent_task_id")
+    @JsonIgnore
     private Task parentTask;
 
     @ManyToMany
@@ -48,4 +48,7 @@ public class Task {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "parentTask", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Task> subtasks = new ArrayList<>();
 }

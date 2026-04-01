@@ -1,12 +1,11 @@
 package net.edu.modulartask.tasks;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
 import net.edu.modulartask.notification.NotificationService;
-import net.edu.modulartask.subtask.SubtaskTemplate;
 import net.edu.modulartask.subtask.SubtaskTemplateService;
-import net.edu.modulartask.tasktemplate.TaskTemplate;
 import net.edu.modulartask.tasktemplate.TaskTemplateService;
 import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserService;
@@ -66,23 +65,69 @@ public class TaskService {
         return taskRepository.findAll();
     }
 
-    public Task createTask(String title, LocalDateTime deadline) {
-        Task task = new Task();
+    @Transactional
+    public Task createTask(CreateTaskDTO createTaskDTO) {
 
-        if(title.isBlank()) {
+        Task parentTask = new Task();
+
+        if(createTaskDTO.title().isBlank()) {
             throw new IllegalArgumentException("Title is empty");
         }
 
-        task.setTitle(title);
-
-        if(LocalDateTime.now().isAfter(deadline)) {
+        if(LocalDateTime.now().isAfter(createTaskDTO.deadline())) {
             throw new InvalidDeadlineException("Deadline is in past");
         }
 
-        task.setDeadline(deadline);
-        task.setStatus(TaskStatus.NEW);
+        parentTask.setTitle(createTaskDTO.title());
+        parentTask.setDescription(createTaskDTO.description());
+        parentTask.setStatus(TaskStatus.NEW);
+        parentTask.setDeadline(createTaskDTO.deadline());
+        parentTask.setCreatedAt(LocalDateTime.now());
 
-        return taskRepository.save(task);
+        // TODO
+        // task.creator
+
+        if(!createTaskDTO.assigneeIds().isEmpty()) {
+            Set<User> set = parentTask.getAssignees();
+            for(var assigneeId : createTaskDTO.assigneeIds()) {
+                User user = userService.findById(assigneeId);
+                set.add(user);
+            }
+            parentTask.setAssignees(set);
+        }
+
+        if(!createTaskDTO.subtasks().isEmpty()) {
+            for(var subtask : createTaskDTO.subtasks()) {
+
+                Task task = new Task();
+                task.setTitle(subtask.title());
+                task.setStatus(TaskStatus.NEW);
+                task.setDeadline(createTaskDTO.deadline().plusDays(subtask.offsetDays()));
+                task.setCreatedAt(LocalDateTime.now());
+
+                User user = userService.findById(subtask.assigneeId());
+                task.getAssignees().add(user);
+
+                task.setParentTask(parentTask);
+                parentTask.getSubtasks().add(task);
+            }
+        }
+
+        return taskRepository.save(parentTask);
+    }
+
+    @Transactional
+    public void createSubtask(String title,UUID userId, Task parentTask,LocalDateTime deadline, int offset) {
+        Task task = new Task();
+
+        User user = userService.findById(userId);
+
+        task.setTitle(title);
+        task.setDeadline(deadline.plusDays(offset));
+        task.setCreator(user);
+        task.setParentTask(parentTask);
+
+        taskRepository.save(task);
     }
 
     public void addAssignee(UUID taskId, UUID userId) {
@@ -196,20 +241,20 @@ public class TaskService {
         taskRepository.save(task);
     }
 
-    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
-        TaskTemplate taskTemplate = taskTemplateService.findById(templateId);
-
-        List<SubtaskTemplate> subtaskTemplates = subtaskTemplateService.findByTemplate(taskTemplate);
-
-        Task parentTask = createTask(taskTemplate.getTitle(), deadline);
-        for(var subtaskTemplate : subtaskTemplates) {
-            Task subTask = createTask(subtaskTemplate.getTitle(), deadline.plusDays(subtaskTemplate.getOffsetDays()));
-
-            subTask.setParentTask(parentTask);
-        }
-
-        return parentTask;
-    }
+//    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
+//        TaskTemplate taskTemplate = taskTemplateService.findById(templateId);
+//
+//        List<SubtaskTemplate> subtaskTemplates = subtaskTemplateService.findByTemplate(taskTemplate);
+//
+//        Task parentTask = createTask(taskTemplate.getTitle(), deadline);
+//        for(var subtaskTemplate : subtaskTemplates) {
+//            Task subTask = createTask(subtaskTemplate.getTitle(), deadline.plusDays(subtaskTemplate.getOffsetDays()));
+//
+//            subTask.setParentTask(parentTask);
+//        }
+//
+//        return parentTask;
+//    }
 
 }
 
