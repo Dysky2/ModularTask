@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
+import net.edu.modulartask.notification.NotificationProducer;
 import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.subtask.SubtaskTemplateService;
 import net.edu.modulartask.tasktemplate.TaskTemplateService;
@@ -34,6 +35,9 @@ public class TaskService {
 
     @Autowired
     SubtaskTemplateService subtaskTemplateService;
+
+    @Autowired
+    private NotificationProducer notificationProducer;
 
     @Autowired
     JwtService jwtService;
@@ -84,8 +88,11 @@ public class TaskService {
         parentTask.setDeadline(createTaskDTO.deadline());
         parentTask.setCreatedAt(LocalDateTime.now());
 
-        // TODO
-        // task.creator
+        User loggedUser = userService.getCurrentlyLoggedUser();
+
+        if(loggedUser != null) {
+            parentTask.setCreator(loggedUser);
+        }
 
         if(!createTaskDTO.assigneeIds().isEmpty()) {
             Set<User> set = parentTask.getAssignees();
@@ -105,11 +112,20 @@ public class TaskService {
                 task.setDeadline(createTaskDTO.deadline().plusDays(subtask.offsetDays()));
                 task.setCreatedAt(LocalDateTime.now());
 
-                User user = userService.findById(subtask.assigneeId());
-                task.getAssignees().add(user);
+                if(subtask.assigneeId() != null) {
+                    User user = userService.findById(subtask.assigneeId());
+                    task.getAssignees().add(user);
+                    notificationProducer.sendNotification("You are assignee to new task", subtask.title(), subtask.assigneeId());
+                }
 
                 task.setParentTask(parentTask);
                 parentTask.getSubtasks().add(task);
+            }
+        }
+
+        for(var assigneeId : createTaskDTO.assigneeIds()) {
+            if(!assigneeId.equals(loggedUser.getId())) {
+                notificationProducer.sendNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), assigneeId);
             }
         }
 
