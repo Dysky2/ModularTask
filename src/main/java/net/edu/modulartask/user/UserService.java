@@ -7,6 +7,8 @@ import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
 import net.edu.modulartask.organization.OrganizationUnit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -50,6 +52,18 @@ public class UserService {
         user.setPassword(hashedPassword);
 
         userRepository.save(user);
+    }
+
+    public User getCurrentlyLoggedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new RuntimeException("No logged user");
+        }
+
+        String username = authentication.getName();
+
+        return findByUsername(username);
     }
 
     @Transactional
