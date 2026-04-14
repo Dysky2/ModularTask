@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -48,5 +49,11 @@ public class TaskController {
     public ResponseEntity<Task> createTask(@Valid @RequestBody CreateTaskDTO createTaskDTO) {
         Task createdTask = taskService.createTask(createTaskDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdTask);
+    }
+
+    @PostMapping("/{taskId}/take")
+    public ResponseEntity<Map<String,String>> takeTask(@PathVariable(name = "taskId") UUID taskId){
+        taskService.takeTask(taskId);
+        return ResponseEntity.ok(Map.of("message","You have taken the task"));
     }
 }
