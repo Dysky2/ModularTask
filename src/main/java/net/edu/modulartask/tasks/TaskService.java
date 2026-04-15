@@ -270,8 +270,7 @@ public class TaskService {
             throw new AccountDisabledException("Account is not active");
         }
 
-        Task task = taskRepository.findById(taskId).orElseThrow(
-                () -> new TaskNotFoundException("Task not found"));
+        Task task = findById(taskId);
 
         if(task.getAssignees().contains(user)) {
             throw new UserAlreadyAssignedException("You are already assigned to this task");
