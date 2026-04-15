@@ -12,37 +12,39 @@ public class GlobalExceptionHandler {
 
     //User
     @ExceptionHandler(AccountDisabledException.class)
-    public ResponseEntity<Map<String,String>> handleAccountDisabled(AccountDisabledException ex)
-    {
+    public ResponseEntity<Map<String,String>> handleAccountDisabled(AccountDisabledException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
     }
 
-
     //Task
     @ExceptionHandler(TaskNotFoundException.class)
-    public ResponseEntity<Map<String,String>> handleTaskNotFound(TaskNotFoundException ex)
-    {
+    public ResponseEntity<Map<String,String>> handleTaskNotFound(TaskNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(UserAlreadyAssignedException.class)
-    public ResponseEntity<Map<String,String>> handleUserAlreadyAssigned(UserAlreadyAssignedException ex)
-    {
+    public ResponseEntity<Map<String,String>> handleUserAlreadyAssigned(UserAlreadyAssignedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(UnauthorizedTaskActionException.class)
-    public ResponseEntity<Map<String,String>> handleUnauthorizedTaskAction(UnauthorizedTaskActionException ex)
-    {
+    public ResponseEntity<Map<String,String>> handleUnauthorizedTaskAction(UnauthorizedTaskActionException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidDeadlineException.class)
-    public ResponseEntity<Map<String,String>> handleInvalidDeadline(InvalidDeadlineException ex)
-    {
+    public ResponseEntity<Map<String,String>> handleInvalidDeadline(InvalidDeadlineException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<Map<String,String>> handleDuplicateEmailException(DuplicateEmailException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String,String>> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
 
 }
