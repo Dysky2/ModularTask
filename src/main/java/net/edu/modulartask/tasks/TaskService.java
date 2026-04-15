@@ -66,6 +66,14 @@ public class TaskService {
         return tasks;
     }
 
+    public List<Task> getAllTasksInProgress() {
+        List<Task> tasks = taskRepository.findAll();
+
+        tasks.removeIf(task -> task.getStatus() != TaskStatus.IN_PROGRESS);
+
+        return tasks;
+    }
+
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
     }

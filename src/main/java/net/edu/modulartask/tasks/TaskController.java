@@ -45,6 +45,12 @@ public class TaskController {
         taskService.addAssignee(taskId, userId);
     }
 
+    @GetMapping("/in-progress")
+    public List<Task> getAllTasksInProgress()
+    {
+        return taskService.getAllTasksInProgress();
+    }
+
     @PostMapping("/create_task")
     public ResponseEntity<Task> createTask(@Valid @RequestBody CreateTaskDTO createTaskDTO) {
         Task createdTask = taskService.createTask(createTaskDTO);
