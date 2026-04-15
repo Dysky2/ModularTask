@@ -7,11 +7,13 @@ import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
 import net.edu.modulartask.organization.OrganizationUnit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,26 +69,41 @@ public class UserService {
     }
 
     @Transactional
-    public User createUser(User user) throws DuplicateEmailException, DuplicateUsernameException {
+    public User createUser(CreateUserDTO createUserDTO) {
 
-        if(user.getEmail() == null || user.getEmail().isBlank()) {
+        if(createUserDTO.email() == null || createUserDTO.email().isBlank()) {
             throw new IllegalArgumentException("Email is empty");
         }
 
-        if(userRepository.existsByEmail(user.getEmail())) {
-            throw new DuplicateEmailException("Email " + user.getEmail() + " exists");
+        if(userRepository.existsByEmail(createUserDTO.email())) {
+            throw new DuplicateEmailException("Email " + createUserDTO.email() + " exists");
         }
 
-        if(user.getUsername() == null || user.getUsername().isBlank()) {
+        if(createUserDTO.username() == null || createUserDTO.username().isBlank()) {
             throw new IllegalArgumentException("Username is empty");
         }
 
-        if(userRepository.existsByUsername(user.getUsername())) {
-            throw new DuplicateUsernameException("Username " + user.getUsername() + " exists");
+        if(userRepository.existsByUsername(createUserDTO.username())) {
+            throw new DuplicateUsernameException("Username " + createUserDTO.username() + " exists");
         }
 
-        userRepository.save(user);
-        return user;
+        User user = new User();
+
+        user.setUsername(createUserDTO.username());
+        user.setFirstName(createUserDTO.firstName());
+        user.setLastName(createUserDTO.lastName());
+        user.setEmail(createUserDTO.email());
+
+        String planPassword = createUserDTO.password();
+
+        String hashedPassword = passwordEncoder.encode(planPassword);
+
+        user.setPassword(hashedPassword);
+        user.setRole(createUserDTO.role());
+        user.setActive(createUserDTO.isActive());
+        user.setCreatedAt(LocalDateTime.now());
+
+        return userRepository.save(user);
     }
 
     public void assignToUnit(UUID userId, OrganizationUnit unit) {

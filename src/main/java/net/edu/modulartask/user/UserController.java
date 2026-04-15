@@ -1,10 +1,9 @@
 package net.edu.modulartask.user;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,5 +22,11 @@ public class UserController {
     @GetMapping("/api/users/{id}")
     public User getUserById(@PathVariable UUID id) {
         return userService.getUserById(id);
+    }
+
+    @PostMapping("/api/users/create")
+    public ResponseEntity<User> createUser(@Valid @RequestBody CreateUserDTO createUserDTO) {
+        User createdUser = userService.createUser(createUserDTO);
+        return ResponseEntity.ok(createdUser);
     }
 }
