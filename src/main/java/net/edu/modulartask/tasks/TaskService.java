@@ -12,6 +12,7 @@ import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,7 +45,7 @@ public class TaskService {
 
     public Task findById(UUID taskId) {
         return taskRepository.findById(taskId).orElseThrow(
-                () -> new IllegalArgumentException("Task is not exist"));
+                () -> new TaskNotFoundException("Task is not exist"));
     }
 
     public List<Task> getAllMyTask(HttpServletRequest request) {
@@ -61,6 +62,14 @@ public class TaskService {
         List<Task> tasks = taskRepository.findAll();
 
         tasks.removeIf(task -> task.getStatus() != TaskStatus.IN_POOL);
+
+        return tasks;
+    }
+
+    public List<Task> getAllTasksInProgress() {
+        List<Task> tasks = taskRepository.findAll();
+
+        tasks.removeIf(task -> task.getStatus() != TaskStatus.IN_PROGRESS);
 
         return tasks;
     }
@@ -182,7 +191,7 @@ public class TaskService {
         Set<User> set = task.getAssignees();
 
         if(!set.contains(user)) {
-            throw new IllegalArgumentException("User does no exist");
+            throw new UserNotFoundException("User does no exist");
         }
 
         set.remove(user);
@@ -255,6 +264,30 @@ public class TaskService {
         task.setStatus(TaskStatus.IN_PROGRESS);
 
         taskRepository.save(task);
+    }
+
+    @Transactional
+    public void takeTask(UUID taskId) {
+        User user = userService.getCurrentlyLoggedUser();
+
+        if(user == null){
+            throw new UserNotFoundException("Logged user not found");
+        }
+
+        if(!user.isActive()) {
+            throw new AccountDisabledException("Account is not active");
+        }
+
+        Task task = findById(taskId);
+
+        if(task.getAssignees().contains(user)) {
+            throw new UserAlreadyAssignedException("You are already assigned to this task");
+        }
+
+        task.setStatus(TaskStatus.NEW);
+        task.getAssignees().add(user);
+        taskRepository.save(task);
+
     }
 
 //    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
