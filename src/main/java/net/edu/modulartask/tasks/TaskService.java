@@ -288,6 +288,44 @@ public class TaskService {
         task.getAssignees().add(user);
         taskRepository.save(task);
 
+
+        if(task.getCreator() != null && task.getCreator() != user){
+            notificationProducer.sendNotification(
+                    "Task taken",
+                    "User " + user.getUsername() + " has taken task created by you: " + task.getTitle(),
+                    task.getCreator().getId()
+            );
+        }
+    }
+
+    public void startWork(UUID taskId) {
+        User user = userService.getCurrentlyLoggedUser();
+        
+        if(user == null){
+            throw new UserNotFoundException("Logged user not found");
+        }
+
+        if(!user.isActive()) {
+            throw new AccountDisabledException("Account is not active");
+        }
+        
+        Task task = findById(taskId);
+
+        if(!task.getAssignees().contains(user)) {
+            throw new UnauthorizedTaskActionException("You are not assigned to this task");
+        }
+
+        task.setStatus(TaskStatus.IN_PROGRESS);
+        taskRepository.save(task);
+        
+        if(task.getCreator() != null && task.getCreator() != user){
+            notificationProducer.sendNotification(
+                    "Work started on task",
+                    "User " + user.getUsername() + " has started work on your task: " + task.getTitle(), 
+                    task.getCreator().getId()
+            );
+        }
+        
     }
 
 //    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
@@ -306,4 +344,3 @@ public class TaskService {
 //    }
 
 }
-

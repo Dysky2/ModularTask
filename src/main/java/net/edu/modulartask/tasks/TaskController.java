@@ -62,4 +62,11 @@ public class TaskController {
         taskService.takeTask(taskId);
         return ResponseEntity.ok(Map.of("message","You have taken the task"));
     }
+
+    @PostMapping("/{taskId}/start-work")
+    public ResponseEntity<Map<String,String>> startWork(@PathVariable(name = "taskId") UUID taskId){
+        taskService.startWork(taskId);
+        return ResponseEntity.ok(Map.of("message","You have started working on the task"));
+    }
+
 }
