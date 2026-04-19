@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -25,10 +26,14 @@ public class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private BCryptPasswordEncoder passwordEncoder;
+
     @InjectMocks
     private UserService userService;
 
     private User sampleUser;
+    private CreateUserDTO sampleCreateUserDTO;
     private UUID sampleId;
 
     @BeforeEach
@@ -45,44 +50,60 @@ public class UserServiceTest {
         sampleUser.setRole(UserRole.USER);
         sampleUser.setActive(true);
         sampleUser.setCreatedAt(LocalDateTime.now());
+
+        sampleCreateUserDTO = new CreateUserDTO(
+                "jkowalski",
+                "Jan",
+                "Kowalski",
+                "jan.kowalski@firma.pl",
+                "tajneHaslo123",
+                UserRole.USER,
+                true
+        );
     }
 
     @Test
     @DisplayName("Tworzy użytkownika z poprawnym emailem i username")
-    void shouldCreateUserWithValidData() throws DuplicateEmailException, DuplicateUsernameException {
-        when(userRepository.existsByEmail(sampleUser.getEmail())).thenReturn(false);
-        when(userRepository.existsByUsername(sampleUser.getUsername())).thenReturn(false);
-        when(userRepository.save(any(User.class))).thenReturn(sampleUser);
+    void shouldCreateUserWithValidData() {
+        when(userRepository.existsByEmail(sampleCreateUserDTO.email())).thenReturn(false);
+        when(userRepository.existsByUsername(sampleCreateUserDTO.username())).thenReturn(false);
+        when(passwordEncoder.encode(sampleCreateUserDTO.password())).thenReturn("$2a$10$hashedPassword");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User saved = inv.getArgument(0);
+            saved.setId(sampleId);
+            return saved;
+        });
 
-        User result = userService.createUser(sampleUser);
+        User result = userService.createUser(sampleCreateUserDTO);
 
         assertThat(result).isNotNull();
         assertThat(result.getEmail()).isEqualTo("jan.kowalski@firma.pl");
         assertThat(result.getUsername()).isEqualTo("jkowalski");
+        assertThat(result.getPassword()).isEqualTo("$2a$10$hashedPassword");
         assertThat(result.isActive()).isTrue();
         assertThat(result.getCreatedAt()).isNotNull();
-        verify(userRepository).save(sampleUser);
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
-    @DisplayName("Nowo tworzony użytkownik domyślnie dostaje rolę USER")
-    void shouldAssignDefaultRoleOnCreation() throws DuplicateEmailException, DuplicateUsernameException {
-        when(userRepository.existsByEmail(sampleUser.getEmail())).thenReturn(false);
-        when(userRepository.existsByUsername(sampleUser.getUsername())).thenReturn(false);
-        when(userRepository.save(any())).thenReturn(sampleUser);
+    @DisplayName("Nowo tworzony użytkownik dostaje rolę przekazaną w DTO")
+    void shouldAssignRoleFromCreationDto() {
+        when(userRepository.existsByEmail(sampleCreateUserDTO.email())).thenReturn(false);
+        when(userRepository.existsByUsername(sampleCreateUserDTO.username())).thenReturn(false);
+        when(passwordEncoder.encode(sampleCreateUserDTO.password())).thenReturn("$2a$10$hashedPassword");
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        User result = userService.createUser(sampleUser);
+        User result = userService.createUser(sampleCreateUserDTO);
 
-        // Domyślna rola to USER – ADMIN nadawany jest osobno przez admina
         assertThat(result.getRole()).isEqualTo(UserRole.USER);
     }
 
     @Test
     @DisplayName("Rzuca wyjątek gdy email już istnieje w systemie")
     void shouldThrowWhenEmailAlreadyExists() {
-        when(userRepository.existsByEmail(sampleUser.getEmail())).thenReturn(true);
+        when(userRepository.existsByEmail(sampleCreateUserDTO.email())).thenReturn(true);
 
-        assertThatThrownBy(() -> userService.createUser(sampleUser))
+        assertThatThrownBy(() -> userService.createUser(sampleCreateUserDTO))
                 .isInstanceOf(DuplicateEmailException.class)
                 .hasMessageContaining("jan.kowalski@firma.pl");
 
@@ -92,10 +113,10 @@ public class UserServiceTest {
     @Test
     @DisplayName("Rzuca wyjątek gdy username już istnieje w systemie")
     void shouldThrowWhenUsernameAlreadyExists() {
-        when(userRepository.existsByEmail(sampleUser.getEmail())).thenReturn(false);
-        when(userRepository.existsByUsername(sampleUser.getUsername())).thenReturn(true);
+        when(userRepository.existsByEmail(sampleCreateUserDTO.email())).thenReturn(false);
+        when(userRepository.existsByUsername(sampleCreateUserDTO.username())).thenReturn(true);
 
-        assertThatThrownBy(() -> userService.createUser(sampleUser))
+        assertThatThrownBy(() -> userService.createUser(sampleCreateUserDTO))
                 .isInstanceOf(DuplicateUsernameException.class)
                 .hasMessageContaining("jkowalski");
 
@@ -105,18 +126,34 @@ public class UserServiceTest {
     @Test
     @DisplayName("Rzuca wyjątek przy pustym emailu")
     void shouldThrowWhenEmailIsBlank() {
-        sampleUser.setEmail("");
+        CreateUserDTO invalid = new CreateUserDTO(
+                sampleCreateUserDTO.username(),
+                sampleCreateUserDTO.firstName(),
+                sampleCreateUserDTO.lastName(),
+                "",
+                sampleCreateUserDTO.password(),
+                sampleCreateUserDTO.role(),
+                sampleCreateUserDTO.isActive()
+        );
 
-        assertThatThrownBy(() -> userService.createUser(sampleUser))
+        assertThatThrownBy(() -> userService.createUser(invalid))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("Rzuca wyjątek przy pustym username")
     void shouldThrowWhenUsernameIsBlank() {
-        sampleUser.setUsername("   ");
+        CreateUserDTO invalid = new CreateUserDTO(
+                "   ",
+                sampleCreateUserDTO.firstName(),
+                sampleCreateUserDTO.lastName(),
+                sampleCreateUserDTO.email(),
+                sampleCreateUserDTO.password(),
+                sampleCreateUserDTO.role(),
+                sampleCreateUserDTO.isActive()
+        );
 
-        assertThatThrownBy(() -> userService.createUser(sampleUser))
+        assertThatThrownBy(() -> userService.createUser(invalid))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

@@ -42,6 +42,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    //Organization
+    @ExceptionHandler(OrganizationUnitNotFoundException.class)
+    public ResponseEntity<Map<String,String>> handleOrganizationUnitNotFound(OrganizationUnitNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CyclicHierarchyException.class)
+    public ResponseEntity<Map<String,String>> handleCyclicHierarchy(CyclicHierarchyException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnauthorizedOrganizationActionException.class)
+    public ResponseEntity<Map<String,String>> handleUnauthorizedOrganizationAction(UnauthorizedOrganizationActionException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String,String>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
