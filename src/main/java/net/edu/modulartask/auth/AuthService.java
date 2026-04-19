@@ -36,7 +36,11 @@ public class AuthService {
 
         if(isPasswordCorrect) {
             String token = jwtService.generateToken(user);
-            return ResponseEntity.ok(Map.of("token", token));
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "role", user.getRole().name(),
+                    "isAdmin", user.getRole().name().equals("ADMIN")
+            ));
         } else {
             return ResponseEntity.status(401).body("Invalid data");
         }
