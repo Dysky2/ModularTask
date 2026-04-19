@@ -1,6 +1,7 @@
 package net.edu.modulartask.user;
 
 import jakarta.transaction.Transactional;
+import net.edu.modulartask.auth.TwoFactorService;
 import net.edu.modulartask.exceptions.AccountDisabledException;
 import net.edu.modulartask.exceptions.DuplicateEmailException;
 import net.edu.modulartask.exceptions.DuplicateUsernameException;
@@ -23,6 +24,9 @@ public class UserService {
     UserRepository userRepository;
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Autowired
+    TwoFactorService twoFactorService;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -105,6 +109,26 @@ public class UserService {
 
         return userRepository.save(user);
     }
+
+    public ResponseEntity<String> enable2Fa(User user, String verifiedKey) {
+
+        if(user.isTwoFactorAuthEnabled()) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        try  {
+            String encryptedKey = twoFactorService.encrypt(verifiedKey);
+            user.setTwoFactorAuthKey(encryptedKey);
+            user.setTwoFactorAuthEnabled(true);
+            userRepository.save(user);
+
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+            return ResponseEntity.status(403).body("2Fa enabled failed, " + e.getMessage());
+        }
+    }
+
 
     public void assignToUnit(UUID userId, OrganizationUnit unit) {
         User user = findById(userId);

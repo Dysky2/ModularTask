@@ -57,4 +57,9 @@ public class User {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "2fa_key")
+    private String twoFactorAuthKey;
+
+    @Column(name = "is_2fa_enabled")
+    private boolean isTwoFactorAuthEnabled;
 }
