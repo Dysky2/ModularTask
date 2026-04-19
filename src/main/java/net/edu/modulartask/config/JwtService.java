@@ -26,6 +26,8 @@ public class JwtService {
                 .subject(user.getUsername())
                 .claim("userId", user.getId().toString())
                 .claim("is2FAEnabled", user.isTwoFactorAuthEnabled())
+                .claim("role", user.getRole().name())
+                .claim("isAdmin", user.getRole().name().equals("ADMIN"))
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 6))
                 .signWith(getSigningKey())
