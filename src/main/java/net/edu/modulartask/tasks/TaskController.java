@@ -2,13 +2,13 @@ package net.edu.modulartask.tasks;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -19,24 +19,41 @@ public class TaskController {
     @Autowired
     TaskService taskService;
 
+    @Autowired
+    UserService userService;
+
     @GetMapping("my")
-    public List<Task> getMyTasks(HttpServletRequest request) {
-        return taskService.getAllMyTask(request);
+    public List<TaskResponseDTO> getMyTasks(HttpServletRequest request) {
+        List<Task> tasks = taskService.getAllMyTask(request);
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return tasks.stream()
+                .map(task -> taskService.toResponseDTO(task, currentUser))
+                .toList();
     }
 
     @GetMapping("/pool")
-    public List<Task> getAllTasksInPool() {
-        return taskService.getAllTasksInPool();
+    public List<TaskResponseDTO> getAllTasksInPool() {
+        List<Task> tasks = taskService.getAllTasksInPool();
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return tasks.stream()
+                .map(task -> taskService.toResponseDTO(task, currentUser))
+                .toList();
     }
 
     @GetMapping("/all")
-    public List<Task> getAllTasks() {
-        return taskService.getAllTasks();
+    public List<TaskResponseDTO> getAllTasks() {
+        List<Task> tasks = taskService.getAllTasks();
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return tasks.stream()
+                .map(task -> taskService.toResponseDTO(task, currentUser))
+                .toList();
     }
 
     @GetMapping("/{taskId}")
-    public Task getTaskById(@PathVariable(name = "taskId") UUID taskId) {
-        return taskService.findById(taskId);
+    public TaskResponseDTO getTaskById(@PathVariable(name = "taskId") UUID taskId) {
+        Task task = taskService.findById(taskId);
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return taskService.toResponseDTO(task, currentUser);
     }
 
     @GetMapping("/{taskId}/assign/{userId}")
@@ -46,20 +63,28 @@ public class TaskController {
     }
 
     @GetMapping("/in-progress")
-    public List<Task> getAllTasksInProgress()
-    {
-        return taskService.getAllTasksInProgress();
+    public List<TaskResponseDTO> getAllTasksInProgress() {
+        List<Task> tasks = taskService.getAllTasksInProgress();
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return tasks.stream()
+                .map(task -> taskService.toResponseDTO(task, currentUser))
+                .toList();
     }
 
     @PostMapping("/create_task")
-    public ResponseEntity<Task> createTask(@Valid @RequestBody CreateTaskDTO createTaskDTO) {
+    public ResponseEntity<TaskResponseDTO> createTask(@Valid @RequestBody CreateTaskDTO createTaskDTO) {
         Task createdTask = taskService.createTask(createTaskDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdTask);
+        var currentUser = userService.getCurrentlyLoggedUser();
+        TaskResponseDTO response = taskService.toResponseDTO(createdTask, currentUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/{taskId}/take")
-    public ResponseEntity<Map<String,String>> takeTask(@PathVariable(name = "taskId") UUID taskId){
+    public ResponseEntity<TaskResponseDTO> takeTask(@PathVariable(name = "taskId") UUID taskId){
         taskService.takeTask(taskId);
-        return ResponseEntity.ok(Map.of("message","You have taken the task"));
+        Task task = taskService.findById(taskId);
+        var currentUser = userService.getCurrentlyLoggedUser();
+        TaskResponseDTO response = taskService.toResponseDTO(task, currentUser);
+        return ResponseEntity.ok(response);
     }
 }
