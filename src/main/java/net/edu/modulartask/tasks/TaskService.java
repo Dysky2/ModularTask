@@ -36,6 +36,14 @@ public class TaskService {
     @Autowired
     JwtService jwtService;
 
+    @Autowired
+    private TaskHistoryRepository taskHistoryRepository;
+
+    private void logTaskHistory(Task task, User user, String action, String details){
+        TaskHistory log = new TaskHistory(task, user, action, details);
+        taskHistoryRepository.save(log);
+    }
+
     private boolean isUserAssignedToTask(Task task, User user) {
         return task.getAssignees().contains(user);
     }
@@ -211,7 +219,28 @@ public class TaskService {
             }
         }
 
-        return taskRepository.save(parentTask);
+        Task savedTask = taskRepository.save(parentTask);
+
+        logTaskHistory(savedTask, loggedUser, "CREATED", "Task created");
+
+        if (!savedTask.getAssignees().isEmpty()) {
+            StringBuilder assigneesLog = new StringBuilder("Assigned users: ");
+            savedTask.getAssignees().forEach(u -> assigneesLog.append(u.getUsername()).append(", "));
+            String formattedLog = assigneesLog.substring(0, assigneesLog.length() - 2);
+            logTaskHistory(savedTask, loggedUser, "ASSIGNEES_ADDED", formattedLog);
+        }
+
+        for (Task savedSubtask : savedTask.getSubtasks()) {
+            logTaskHistory(savedSubtask, loggedUser, "CREATED", "Subtask created");
+            if (!savedSubtask.getAssignees().isEmpty()) {
+                StringBuilder stAssigneesLog = new StringBuilder("Assigned users: ");
+                savedSubtask.getAssignees().forEach(u -> stAssigneesLog.append(u.getUsername()).append(", "));
+                String stFormattedLog = stAssigneesLog.substring(0, stAssigneesLog.length() - 2);
+                logTaskHistory(savedSubtask, loggedUser, "ASSIGNEES_ADDED", stFormattedLog);
+            }
+        }
+
+        return savedTask;
     }
 
     @Transactional
@@ -226,6 +255,7 @@ public class TaskService {
         task.setParentTask(parentTask);
 
         taskRepository.save(task);
+        logTaskHistory(task, user, "CREATED", "Subtask created manually: " + title);
     }
 
     public void addAssignee(UUID taskId, UUID userId) {
@@ -261,6 +291,9 @@ public class TaskService {
         notificationService.notifyAssignment(task, user);
 
         taskRepository.save(task);
+
+        User currentUser = userService.getCurrentlyLoggedUser();
+        logTaskHistory(task, currentUser, "ASSIGNEE_ADDED", "User " + user.getUsername() + " added to task");
     }
 
     public void removeAssignee(UUID taskId, UUID userId) {
@@ -282,6 +315,9 @@ public class TaskService {
         notificationService.notifyRemovedFromTask(task, user);
 
         taskRepository.save(task);
+
+        User currentUser = userService.getCurrentlyLoggedUser();
+        logTaskHistory(task, currentUser, "ASSIGNEE_REMOVED", "User " + user.getUsername() + " removed from task");
     }
 
     public void submitReport(UUID taskId, UUID userId, String title)  {
@@ -305,6 +341,7 @@ public class TaskService {
         // wysylka do kogos do acceptu
 
         taskRepository.save(task);
+        logTaskHistory(task, user, "STATUS_CHANGED", "Task submitted for report: " + title);
     }
 
     public void acceptTask(UUID taskId, UUID creatorId) {
@@ -328,6 +365,9 @@ public class TaskService {
         task.setStatus(TaskStatus.COMPLETED);
 
         taskRepository.save(task);
+
+        User currentUser = userService.getCurrentlyLoggedUser();
+        logTaskHistory(task, currentUser, "STATUS_CHANGED", "Task ACCEPTED and COMPLETED");
     }
 
     public void rejectTask(UUID taskId, UUID creatorId, String comment) {
@@ -345,6 +385,9 @@ public class TaskService {
         task.setStatus(TaskStatus.IN_PROGRESS);
 
         taskRepository.save(task);
+
+        User currentUser = userService.getCurrentlyLoggedUser();
+        logTaskHistory(task, currentUser, "STATUS_CHANGED", "Task REJECTED. Moved to IN_PROGRESS. Comment: " + comment);
     }
 
     @Transactional
@@ -375,6 +418,7 @@ public class TaskService {
         updatePoolStatusByCapacity(task);
         taskRepository.save(task);
 
+        logTaskHistory(task, user, "TASK_TAKEN", "User took the task");
 
         if(task.getCreator() != null && task.getCreator() != user){
             notificationProducer.sendNotification(
@@ -387,7 +431,7 @@ public class TaskService {
 
     public void startWork(UUID taskId) {
         User user = userService.getCurrentlyLoggedUser();
-        
+
         if(user == null){
             throw new UserNotFoundException("Logged user not found");
         }
@@ -395,7 +439,7 @@ public class TaskService {
         if(!user.isActive()) {
             throw new AccountDisabledException("Account is not active");
         }
-        
+
         Task task = findById(taskId);
 
         if(!task.getAssignees().contains(user)) {
@@ -404,15 +448,17 @@ public class TaskService {
 
         task.setStatus(TaskStatus.IN_PROGRESS);
         taskRepository.save(task);
-        
+
+        logTaskHistory(task, user, "STATUS_CHANGED", "Status changed to IN_PROGRESS. Work started.");
+
         if(task.getCreator() != null && task.getCreator() != user){
             notificationProducer.sendNotification(
                     "Work started on task",
-                    "User " + user.getUsername() + " has started work on your task: " + task.getTitle(), 
+                    "User " + user.getUsername() + " has started work on your task: " + task.getTitle(),
                     task.getCreator().getId()
             );
         }
-        
+
     }
 
 //    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
