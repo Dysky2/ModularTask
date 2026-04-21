@@ -7,6 +7,8 @@ import net.edu.modulartask.exceptions.DuplicateEmailException;
 import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
 import net.edu.modulartask.organization.OrganizationUnit;
+import net.edu.modulartask.tasks.TaskHistory;
+import net.edu.modulartask.tasks.TaskHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -27,6 +29,9 @@ public class UserService {
 
     @Autowired
     TwoFactorService twoFactorService;
+
+    @Autowired
+    TaskHistoryRepository taskHistoryRepository;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -177,5 +182,37 @@ public class UserService {
             throw new AccountDisabledException("This account is turn off");
         }
 
+    }
+
+    public ProfileDetailsDTO getProfileDetails() {
+        User user = getCurrentlyLoggedUser();
+
+        if(user == null){
+            throw new UserNotFoundException("User not found");
+        }
+
+        List<TaskHistory> history = taskHistoryRepository.findTop10ByUserOrderByCreatedAtDesc(user);
+
+        List<UserActivityDTO> recentActivity = history.stream()
+                .map(event -> new UserActivityDTO(
+                        event.getTask().getId(),
+                        event.getTask().getTitle(),
+                        event.getAction(),
+                        event.getDetails(),
+                        event.getCreatedAt()
+                )).toList();
+
+        ProfileDetailsDTO details = new ProfileDetailsDTO(
+                user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.getRole(),
+                user.getOrganizationUnit(),
+                user.isActive(),
+                recentActivity
+        );
+
+        return details;
     }
 }

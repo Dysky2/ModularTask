@@ -30,4 +30,10 @@ public class UserController {
         User createdUser = userService.createUser(createUserDTO);
         return ResponseEntity.ok(createdUser);
     }
+
+    @GetMapping("/profile/me")
+    public ResponseEntity<ProfileDetailsDTO> getProfileDetails(){
+        ProfileDetailsDTO details = userService.getProfileDetails();
+        return ResponseEntity.ok(details);
+    }
 }
