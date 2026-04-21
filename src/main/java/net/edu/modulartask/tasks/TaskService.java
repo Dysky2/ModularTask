@@ -6,15 +6,14 @@ import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
 import net.edu.modulartask.notification.NotificationProducer;
 import net.edu.modulartask.notification.NotificationService;
-import net.edu.modulartask.subtask.SubtaskTemplateService;
-import net.edu.modulartask.tasktemplate.TaskTemplateService;
+import net.edu.modulartask.subtask.SubTaskDTO;
 import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -32,16 +31,46 @@ public class TaskService {
     NotificationService notificationService;
 
     @Autowired
-    TaskTemplateService taskTemplateService;
-
-    @Autowired
-    SubtaskTemplateService subtaskTemplateService;
-
-    @Autowired
     private NotificationProducer notificationProducer;
 
     @Autowired
     JwtService jwtService;
+
+    private boolean isUserAssignedToTask(Task task, User user) {
+        return task.getAssignees().contains(user);
+    }
+
+    private TaskStatus getUserStatus(Task task, User user) {
+        return isUserAssignedToTask(task, user) ? TaskStatus.NEW : TaskStatus.IN_POOL;
+    }
+
+    private boolean isTaskLimitFull(Task task) {
+        return task.getAssignees().size() >= task.getLimit();
+    }
+
+    private void updatePoolStatusByCapacity(Task task) {
+        task.setStatus(isTaskLimitFull(task) ? TaskStatus.NEW : TaskStatus.IN_POOL);
+    }
+
+    public TaskResponseDTO toResponseDTO(Task task, User currentUser) {
+        return new TaskResponseDTO(
+            task.getId(),
+            task.getTitle(),
+            task.getDescription(),
+            task.getStatus(),
+            getUserStatus(task, currentUser),
+            task.getAssignees(),
+            task.getLimit(),
+            task.getDeadline(),
+            task.getCreatedAt()
+        );
+    }
+
+    public List<TaskResponseDTO> toResponseDTOList(List<Task> tasks, User currentUser) {
+        return tasks.stream()
+                .map(task -> toResponseDTO(task, currentUser))
+                .toList();
+    }
 
     public Task findById(UUID taskId) {
         return taskRepository.findById(taskId).orElseThrow(
@@ -60,8 +89,15 @@ public class TaskService {
 
     public List<Task> getAllTasksInPool() {
         List<Task> tasks = taskRepository.findAll();
+        User currentUser = userService.getCurrentlyLoggedUser();
 
         tasks.removeIf(task -> task.getStatus() != TaskStatus.IN_POOL);
+
+        tasks.removeIf(this::isTaskLimitFull);
+
+        if (currentUser != null) {
+            tasks.removeIf(task -> task.getAssignees().contains(currentUser));
+        }
 
         return tasks;
     }
@@ -93,9 +129,15 @@ public class TaskService {
 
         parentTask.setTitle(createTaskDTO.title());
         parentTask.setDescription(createTaskDTO.description());
-        parentTask.setStatus(TaskStatus.NEW);
         parentTask.setDeadline(createTaskDTO.deadline());
         parentTask.setCreatedAt(LocalDateTime.now());
+        parentTask.setStatus(TaskStatus.IN_POOL);
+
+        int taskLimit = createTaskDTO.limit() == null ? 10 : createTaskDTO.limit();
+        if(taskLimit < 1) {
+            throw new IllegalArgumentException("Limit must be at least 1");
+        }
+        parentTask.setLimit(taskLimit);
 
         User loggedUser = userService.getCurrentlyLoggedUser();
 
@@ -103,23 +145,41 @@ public class TaskService {
             parentTask.setCreator(loggedUser);
         }
 
-        if(!createTaskDTO.assigneeIds().isEmpty()) {
-            Set<User> set = parentTask.getAssignees();
-            for(var assigneeId : createTaskDTO.assigneeIds()) {
-                User user = userService.findById(assigneeId);
-                set.add(user);
-            }
-            parentTask.setAssignees(set);
+        List<UUID> assigneeIds = createTaskDTO.assigneeIds() == null ? Collections.emptyList() : createTaskDTO.assigneeIds();
+        List<SubTaskDTO> subtasks = createTaskDTO.subtasks() == null ? Collections.emptyList() : createTaskDTO.subtasks();
+
+        if(assigneeIds.size() > taskLimit) {
+            throw new IllegalArgumentException("Cannot assign more users than task limit");
         }
 
-        if(!createTaskDTO.subtasks().isEmpty()) {
-            for(var subtask : createTaskDTO.subtasks()) {
+
+        //Wariant zadanie posiada subtaski -> wykonawca glownego zadania musi byc przypisany
+        if(!subtasks.isEmpty()) {
+
+            if(!assigneeIds.isEmpty()) {
+                Set<User> set = parentTask.getAssignees();
+                for(var assigneeId : assigneeIds) {
+                    User user = userService.findById(assigneeId);
+                    set.add(user);
+                }
+                parentTask.setAssignees(set);
+            }else {
+                throw new IllegalArgumentException("Task with subtasks must have at least one assignee");
+            }
+
+            for(var subtask : subtasks) {
 
                 Task task = new Task();
                 task.setTitle(subtask.title());
-                task.setStatus(TaskStatus.NEW);
+                task.setStatus(TaskStatus.IN_POOL);
                 task.setDeadline(createTaskDTO.deadline().plusDays(subtask.offsetDays()));
                 task.setCreatedAt(LocalDateTime.now());
+                
+                int subtaskLimit = subtask.limit() == null ? 1 : subtask.limit();
+                if(subtaskLimit < 1) {
+                    throw new IllegalArgumentException("Subtask limit must be at least 1");
+                }
+                task.setLimit(subtaskLimit);
 
                 if(subtask.assigneeId() != null) {
                     User user = userService.findById(subtask.assigneeId());
@@ -127,13 +187,26 @@ public class TaskService {
                     notificationProducer.sendNotification("You are assignee to new task", subtask.title(), subtask.assigneeId());
                 }
 
+                updatePoolStatusByCapacity(task);
+
                 task.setParentTask(parentTask);
                 parentTask.getSubtasks().add(task);
             }
+        }else{
+            //Wariant zadanie nie posiada subtaskow -> nie musi miec wykonawcy
+            Set<User> set = parentTask.getAssignees();
+            for(var assigneeId : assigneeIds) {
+                User user = userService.findById(assigneeId);
+                set.add(user);
+            }
+            parentTask.setAssignees(set);
+
         }
 
-        for(var assigneeId : createTaskDTO.assigneeIds()) {
-            if(!assigneeId.equals(loggedUser.getId())) {
+        updatePoolStatusByCapacity(parentTask);
+
+        for(var assigneeId : assigneeIds) {
+            if(loggedUser == null || !assigneeId.equals(loggedUser.getId())) {
                 notificationProducer.sendNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), assigneeId);
             }
         }
@@ -174,9 +247,16 @@ public class TaskService {
             throw new UserAlreadyAssignedException(user.getUsername() + " is already assign");
         }
 
+        if(set.size() >= task.getLimit()) {
+            throw new IllegalArgumentException(
+                "Cannot add more assignees. Task limit (" + task.getLimit() + ") has been reached"
+            );
+        }
+
         set.add(user);
 
         task.setAssignees(set);
+        updatePoolStatusByCapacity(task);
 
         notificationService.notifyAssignment(task, user);
 
@@ -197,6 +277,7 @@ public class TaskService {
         set.remove(user);
 
         task.setAssignees(set);
+        updatePoolStatusByCapacity(task);
 
         notificationService.notifyRemovedFromTask(task, user);
 
@@ -284,8 +365,14 @@ public class TaskService {
             throw new UserAlreadyAssignedException("You are already assigned to this task");
         }
 
-        task.setStatus(TaskStatus.NEW);
+        if(task.getAssignees().size() >= task.getLimit()) {
+            throw new IllegalArgumentException(
+                "Cannot take this task. Task limit (" + task.getLimit() + ") has been reached"
+            );
+        }
+
         task.getAssignees().add(user);
+        updatePoolStatusByCapacity(task);
         taskRepository.save(task);
 
 

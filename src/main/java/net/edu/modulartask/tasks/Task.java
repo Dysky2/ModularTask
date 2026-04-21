@@ -46,6 +46,9 @@ public class Task {
 
     private LocalDateTime deadline;
 
+    @Column(name = "task_limit")
+    private int limit = 10;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
