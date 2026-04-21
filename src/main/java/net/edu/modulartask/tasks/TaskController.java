@@ -26,27 +26,21 @@ public class TaskController {
     public List<TaskResponseDTO> getMyTasks(HttpServletRequest request) {
         List<Task> tasks = taskService.getAllMyTask(request);
         var currentUser = userService.getCurrentlyLoggedUser();
-        return tasks.stream()
-                .map(task -> taskService.toResponseDTO(task, currentUser))
-                .toList();
+        return taskService.toResponseDTOList(tasks, currentUser);
     }
 
     @GetMapping("/pool")
     public List<TaskResponseDTO> getAllTasksInPool() {
         List<Task> tasks = taskService.getAllTasksInPool();
         var currentUser = userService.getCurrentlyLoggedUser();
-        return tasks.stream()
-                .map(task -> taskService.toResponseDTO(task, currentUser))
-                .toList();
+        return taskService.toResponseDTOList(tasks, currentUser);
     }
 
     @GetMapping("/all")
     public List<TaskResponseDTO> getAllTasks() {
         List<Task> tasks = taskService.getAllTasks();
         var currentUser = userService.getCurrentlyLoggedUser();
-        return tasks.stream()
-                .map(task -> taskService.toResponseDTO(task, currentUser))
-                .toList();
+        return taskService.toResponseDTOList(tasks, currentUser);
     }
 
     @GetMapping("/{taskId}")
@@ -66,9 +60,7 @@ public class TaskController {
     public List<TaskResponseDTO> getAllTasksInProgress() {
         List<Task> tasks = taskService.getAllTasksInProgress();
         var currentUser = userService.getCurrentlyLoggedUser();
-        return tasks.stream()
-                .map(task -> taskService.toResponseDTO(task, currentUser))
-                .toList();
+        return taskService.toResponseDTOList(tasks, currentUser);
     }
 
     @PostMapping("/create_task")

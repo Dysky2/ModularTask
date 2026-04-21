@@ -66,6 +66,12 @@ public class TaskService {
         );
     }
 
+    public List<TaskResponseDTO> toResponseDTOList(List<Task> tasks, User currentUser) {
+        return tasks.stream()
+                .map(task -> toResponseDTO(task, currentUser))
+                .toList();
+    }
+
     public Task findById(UUID taskId) {
         return taskRepository.findById(taskId).orElseThrow(
                 () -> new TaskNotFoundException("Task is not exist"));
