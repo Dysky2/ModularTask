@@ -62,4 +62,7 @@ public class User {
 
     @Column(name = "is_2fa_enabled")
     private boolean isTwoFactorAuthEnabled;
+
+    @Column(name = "description")
+    private String description;
 }
