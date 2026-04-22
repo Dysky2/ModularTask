@@ -36,4 +36,10 @@ public class UserController {
         ProfileDetailsDTO details = userService.getProfileDetails();
         return ResponseEntity.ok(details);
     }
+
+    @PostMapping("/profile/me/update")
+    public ResponseEntity<ProfileDetailsDTO> updateUserDetails(@RequestBody String description){
+        ProfileDetailsDTO details = userService.updateUserDetails(description);
+        return ResponseEntity.ok(details);
+    }
 }

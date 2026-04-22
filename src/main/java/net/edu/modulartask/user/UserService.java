@@ -208,11 +208,28 @@ public class UserService {
                 user.getLastName(),
                 user.getEmail(),
                 user.getRole(),
+                user.getDescription(),
                 user.getOrganizationUnit(),
                 user.isActive(),
                 recentActivity
         );
 
         return details;
+    }
+
+    public ProfileDetailsDTO updateUserDetails(String description){
+        if(description.isEmpty()){
+            throw new IllegalArgumentException("Description is empty");
+        }
+
+        User user = getCurrentlyLoggedUser();
+        if(user == null){
+            throw new UserNotFoundException("User not found");
+        }
+
+        user.setDescription(description);
+        userRepository.save(user);
+
+        return getProfileDetails();
     }
 }
