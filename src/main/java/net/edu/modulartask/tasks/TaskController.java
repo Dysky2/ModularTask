@@ -44,6 +44,13 @@ public class TaskController {
         return taskService.toResponseDTOList(tasks, currentUser);
     }
 
+    @GetMapping("/aprroval")
+    public List<TaskResponseDTO> getAllTasksApproval() {
+        List<Task> tasks = taskService.getAllTaskForApproval();
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return taskService.toResponseDTOList(tasks, currentUser);
+    }
+
     @GetMapping("/{taskId}")
     public TaskResponseDTO getTaskById(@PathVariable(name = "taskId") UUID taskId) {
         Task task = taskService.findById(taskId);

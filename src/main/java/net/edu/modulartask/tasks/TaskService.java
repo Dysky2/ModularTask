@@ -122,6 +122,12 @@ public class TaskService {
         return taskRepository.findAll();
     }
 
+    public List<Task> getAllTaskForApproval() {
+        User user = userService.getCurrentlyLoggedUser();
+
+        return taskRepository.findALlByCreatorIdAndStatus(user.getId() ,TaskStatus.PENDING_ACCEPTANCE);
+    }
+
     @Transactional
     public Task createTask(CreateTaskDTO createTaskDTO) {
 
