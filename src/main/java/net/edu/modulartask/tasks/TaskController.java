@@ -51,6 +51,11 @@ public class TaskController {
         return taskService.toResponseDTOList(tasks, currentUser);
     }
 
+    @PostMapping("/{taskId}/approve")
+    public ResponseEntity<Map<String,String>> changeStatusToApprove(@PathVariable(name = "taskId") UUID taskId) {
+        return taskService.changeStatus(taskId, TaskStatus.PENDING_ACCEPTANCE);
+    }
+
     @GetMapping("/{taskId}")
     public TaskResponseDTO getTaskById(@PathVariable(name = "taskId") UUID taskId) {
         Task task = taskService.findById(taskId);

@@ -10,13 +10,12 @@ import net.edu.modulartask.subtask.SubTaskDTO;
 import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class TaskService {
@@ -126,6 +125,22 @@ public class TaskService {
         User user = userService.getCurrentlyLoggedUser();
 
         return taskRepository.findALlByCreatorIdAndStatus(user.getId() ,TaskStatus.PENDING_ACCEPTANCE);
+    }
+
+    public ResponseEntity<Map<String,String>> changeStatus(UUID taskID, TaskStatus status) {
+        Task task = findById(taskID);
+
+        User user = userService.getCurrentlyLoggedUser();
+
+        if(!task.getAssignees().contains(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "You are not part of the team"));
+        }
+
+        task.setStatus(status);
+
+        taskRepository.save(task);
+
+        return ResponseEntity.ok(Map.of("message", "Task change status to approved by creator"));
     }
 
     @Transactional
