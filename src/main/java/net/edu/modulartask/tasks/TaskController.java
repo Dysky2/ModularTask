@@ -51,9 +51,19 @@ public class TaskController {
         return taskService.toResponseDTOList(tasks, currentUser);
     }
 
-    @PostMapping("/{taskId}/approve")
-    public ResponseEntity<Map<String,String>> changeStatusToApprove(@PathVariable(name = "taskId") UUID taskId) {
+    @PostMapping("/{taskId}/pending_acceptance")
+    public ResponseEntity<Map<String,String>> changeStatusToPendingAcceptance(@PathVariable(name = "taskId") UUID taskId) {
         return taskService.changeStatus(taskId, TaskStatus.PENDING_ACCEPTANCE);
+    }
+
+    @PostMapping("/{taskId}/approve")
+    public ResponseEntity<Map<String,String>> taskApproved(@PathVariable(name = "taskId") UUID taskId) {
+        return taskService.acceptTask(taskId);
+    }
+
+    @PostMapping("/{taskId}/reject")
+    public ResponseEntity<Map<String,String>> taskRejected(@PathVariable(name = "taskId") UUID taskId, @RequestBody String reason) {
+        return taskService.rejectTask(taskId, reason);
     }
 
     @GetMapping("/{taskId}")
