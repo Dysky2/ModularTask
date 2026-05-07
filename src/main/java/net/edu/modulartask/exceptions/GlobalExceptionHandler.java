@@ -63,4 +63,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(OrganizationUnitHasChildrenException.class)
+    public ResponseEntity<Map<String,String>> handleOrganizationUnitHasChildren(OrganizationUnitHasChildrenException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
 }

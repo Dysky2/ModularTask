@@ -1,6 +1,7 @@
 package net.edu.modulartask.organization;
 
 import net.edu.modulartask.exceptions.CyclicHierarchyException;
+import net.edu.modulartask.exceptions.OrganizationUnitHasChildrenException;
 import net.edu.modulartask.exceptions.UnauthorizedOrganizationActionException;
 import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserRole;
@@ -159,7 +160,7 @@ class OrganizationUnitServiceTest {
         when(organizationUnitRepository.findByParent(root)).thenReturn(List.of(child));
 
         assertThatThrownBy(() -> organizationUnitService.deleteUnit(root.getUnitId()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(OrganizationUnitHasChildrenException.class)
                 .hasMessageContaining("with children");
 
         verify(organizationUnitRepository, never()).delete(root);
@@ -189,5 +190,4 @@ class OrganizationUnitServiceTest {
         when(userService.getCurrentlyLoggedUser()).thenReturn(adminUser);
     }
 }
-
 
