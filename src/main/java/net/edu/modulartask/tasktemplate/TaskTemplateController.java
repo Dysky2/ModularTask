@@ -31,4 +31,9 @@ public class TaskTemplateController {
     public ResponseEntity<Map<String, String>> createTaskTemplate(@Valid @RequestBody NewTaskTemplateDTO newTaskTemplateDTO) {
         return taskTemplateService.createTaskTemplate(newTaskTemplateDTO);
     }
+
+    @DeleteMapping("/{templateId}")
+    public ResponseEntity<Map<String, String>> deleteTaskTemplate(@PathVariable(name = "templateId") UUID templateID ) {
+        return taskTemplateService.deleteTaskTemplate(templateID);
+    }
 }

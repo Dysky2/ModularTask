@@ -63,4 +63,12 @@ public class TaskTemplateService {
 
         return ResponseEntity.ok(Map.of("message", "Succesful created template"));
     }
+
+    public ResponseEntity<Map<String, String>>  deleteTaskTemplate(UUID templateID) {
+        TaskTemplate taskTemplate = findById(templateID);
+
+        taskTemplateRepository.delete(taskTemplate);
+
+        return ResponseEntity.ok(Map.of("message", "Succesful deleted template"));
+    }
 }
