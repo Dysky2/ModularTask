@@ -1,5 +1,6 @@
 package net.edu.modulartask.tasks;
 
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import net.edu.modulartask.config.JwtService;
@@ -14,7 +15,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -38,6 +42,9 @@ public class TaskService {
 
     @Autowired
     private TaskHistoryRepository taskHistoryRepository;
+
+    @Autowired
+    TemplateEngine templateEngine;
 
     private void logTaskHistory(Task task, User user, String action, String details){
         TaskHistory log = new TaskHistory(task, user, action, details);
@@ -391,7 +398,6 @@ public class TaskService {
         }
     }
 
-
     public ResponseEntity<Map<String, String>> acceptTask(UUID taskId) {
         Task task = findById(taskId);
 
@@ -505,6 +511,38 @@ public class TaskService {
         }
 
     }
+
+    public byte[] generatePdfFromHtml(String html) {
+        try(ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.useFastMode();
+            builder.useFont(() -> getClass().getResourceAsStream("/fonts/Roboto-Regular.ttf"), "RobotoCustom");
+            builder.withHtmlContent(html, null);
+            builder.toStream(outputStream);
+            builder.run();
+            return outputStream.toByteArray();
+        } catch( Exception e) {
+            throw new RuntimeException("Error, while generator pdf from html");
+        }
+    }
+
+    public byte[] generateReport(UUID taskId) {
+        Task task = findById(taskId);
+
+        User user = userService.getCurrentlyLoggedUser();
+
+        Context context = new Context();
+        context.setVariable("task", task);
+        context.setVariable("subtasks", task.getSubtasks());
+        context.setVariable("generatedBy", user.getFirstName() + " " + user.getLastName());
+        context.setVariable("reportDate", LocalDateTime.now());
+        context.setVariable("generatedBy", user.getFirstName() + " " + user.getLastName());
+
+        String renderedHtmlContent = templateEngine.process("reportTemplate", context);
+
+        return generatePdfFromHtml(renderedHtmlContent);
+    }
+
 
 //    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
 //        TaskTemplate taskTemplate = taskTemplateService.findById(templateId);
