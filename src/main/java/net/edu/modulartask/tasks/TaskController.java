@@ -44,6 +44,28 @@ public class TaskController {
         return taskService.toResponseDTOList(tasks, currentUser);
     }
 
+    @GetMapping("/aprroval")
+    public List<TaskResponseDTO> getAllTasksApproval() {
+        List<Task> tasks = taskService.getAllTaskForApproval();
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return taskService.toResponseDTOList(tasks, currentUser);
+    }
+
+    @PostMapping("/{taskId}/pending_acceptance")
+    public ResponseEntity<Map<String,String>> changeStatusToPendingAcceptance(@PathVariable(name = "taskId") UUID taskId) {
+        return taskService.changeStatus(taskId, TaskStatus.PENDING_ACCEPTANCE);
+    }
+
+    @PostMapping("/{taskId}/approve")
+    public ResponseEntity<Map<String,String>> taskApproved(@PathVariable(name = "taskId") UUID taskId) {
+        return taskService.acceptTask(taskId);
+    }
+
+    @PostMapping("/{taskId}/reject")
+    public ResponseEntity<Map<String,String>> taskRejected(@PathVariable(name = "taskId") UUID taskId, @RequestBody String reason) {
+        return taskService.rejectTask(taskId, reason);
+    }
+
     @GetMapping("/{taskId}")
     public TaskResponseDTO getTaskById(@PathVariable(name = "taskId") UUID taskId) {
         Task task = taskService.findById(taskId);

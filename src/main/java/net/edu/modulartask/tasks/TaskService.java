@@ -10,13 +10,13 @@ import net.edu.modulartask.subtask.SubTaskDTO;
 import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class TaskService {
@@ -120,6 +120,28 @@ public class TaskService {
 
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
+    }
+
+    public List<Task> getAllTaskForApproval() {
+        User user = userService.getCurrentlyLoggedUser();
+
+        return taskRepository.findALlByCreatorIdAndStatus(user.getId() ,TaskStatus.PENDING_ACCEPTANCE);
+    }
+
+    public ResponseEntity<Map<String,String>> changeStatus(UUID taskID, TaskStatus status) {
+        Task task = findById(taskID);
+
+        User user = userService.getCurrentlyLoggedUser();
+
+        if(status.equals(TaskStatus.PENDING_ACCEPTANCE) && !task.getAssignees().contains(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "You are not part of the team"));
+        }
+
+        task.setStatus(status);
+
+        taskRepository.save(task);
+
+        return ResponseEntity.ok(Map.of("message", "Task change status to approved by creator"));
     }
 
     @Transactional
@@ -344,40 +366,62 @@ public class TaskService {
         logTaskHistory(task, user, "STATUS_CHANGED", "Task submitted for report: " + title);
     }
 
-    public void acceptTask(UUID taskId, UUID creatorId) {
+    public User getCreator(Task task) {
+
+        if (task.getCreator() != null) {
+            return task.getCreator();
+        }
+
+        if (task.getParentTask() != null) {
+            return getCreator(task.getParentTask());
+        }
+
+        return null;
+    }
+
+    private void validateAccess(User user, Task task) {
+        User creatorUser = getCreator(task);
+
+        if (creatorUser == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Creator not found");
+        }
+
+        if (!user.getId().equals(creatorUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not qualified to perform this action");
+        }
+    }
+
+
+    public ResponseEntity<Map<String, String>> acceptTask(UUID taskId) {
         Task task = findById(taskId);
 
         List<Task> subTasks = taskRepository.findByParentTask(task);
 
-        User user = userService.findById(creatorId);
+        User user = userService.getCurrentlyLoggedUser();
 
-        if(!task.getCreator().getEmail().equals(user.getEmail())) {
-            throw new UserNotFoundException("User not exist");
-        }
-
-        // TODO
-        // sprawdzic czy napewno kazdy z subTaskow jest wykonany
+        validateAccess(user, task);
 
         for(var tempTask : subTasks) {
-            tempTask.setStatus(TaskStatus.COMPLETED);
+            if(!tempTask.getStatus().equals(TaskStatus.COMPLETED)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "All subtasks, are not finished"));
+            }
         }
 
         task.setStatus(TaskStatus.COMPLETED);
 
         taskRepository.save(task);
 
-        User currentUser = userService.getCurrentlyLoggedUser();
-        logTaskHistory(task, currentUser, "STATUS_CHANGED", "Task ACCEPTED and COMPLETED");
+        logTaskHistory(task, user, "STATUS_CHANGED", "Task ACCEPTED and COMPLETED");
+
+        return ResponseEntity.ok(Map.of("message", "Task is completed"));
     }
 
-    public void rejectTask(UUID taskId, UUID creatorId, String comment) {
+    public ResponseEntity<Map<String, String>> rejectTask(UUID taskId, String reason) {
         Task task = findById(taskId);
 
-        User user = userService.findById(creatorId);
+        User user = userService.getCurrentlyLoggedUser();
 
-        if(!task.getCreator().getEmail().equals(user.getEmail())) {
-            throw new UserNotFoundException("User not exist");
-        }
+        validateAccess(user, task);
 
         // TODO
         // dodanie komentarza do zadanie ze nie zostal zaakceptowany
@@ -386,8 +430,9 @@ public class TaskService {
 
         taskRepository.save(task);
 
-        User currentUser = userService.getCurrentlyLoggedUser();
-        logTaskHistory(task, currentUser, "STATUS_CHANGED", "Task REJECTED. Moved to IN_PROGRESS. Comment: " + comment);
+        logTaskHistory(task, user, "STATUS_CHANGED", "Task REJECTED. Moved to IN_PROGRESS. Comment: " + reason);
+
+        return ResponseEntity.ok(Map.of("message", "Task is rejected"));
     }
 
     @Transactional
