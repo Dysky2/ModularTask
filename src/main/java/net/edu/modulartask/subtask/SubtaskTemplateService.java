@@ -16,4 +16,8 @@ public class SubtaskTemplateService {
         return subtaskTemplateRepository.findByTemplate(taskTemplate);
     }
 
+    public void saveSubTask(SubtaskTemplate subtaskTemplate) {
+        subtaskTemplateRepository.save(subtaskTemplate);
+    }
+
 }
