@@ -4,8 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -64,6 +63,20 @@ public class TaskController {
     @PostMapping("/{taskId}/reject")
     public ResponseEntity<Map<String,String>> taskRejected(@PathVariable(name = "taskId") UUID taskId, @RequestBody String reason) {
         return taskService.rejectTask(taskId, reason);
+    }
+
+    @GetMapping("/{taskId}/raport")
+    public ResponseEntity<byte[]> generateReport(@PathVariable(name = "taskId") UUID taskId) {
+
+        byte[] pdfContent = taskService.generateReport(taskId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+
+        String fileName = "Raport_zadania_" + taskId + ".pdf";
+        headers.setContentDisposition(ContentDisposition.builder("attachment").filename(fileName).build());
+
+        return ResponseEntity.ok().headers(headers).contentLength(pdfContent.length).body(pdfContent);
     }
 
     @GetMapping("/{taskId}")

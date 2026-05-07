@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        /* DEFINICJA STRONY */
+        @page {
+            size: A4;
+            margin: 2.5cm 2cm;
+            @bottom-left {
+                content: "ModularTask Enterprise Edition";
+                font-family: serif;
+                font-size: 8pt;
+                color: #666;
+            }
+            @bottom-right {
+                content: "Strona " counter(page) " z " counter(pages);
+                font-family: serif;
+                font-size: 8pt;
+            }
+        }
+
+        /* TYPOGRAFIA KLASYCZNA */
+        body {
+            font-family: 'RobotoCustom', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.45;
+            color: #000;
+            text-align: justify;
+        }
+
+        /* NAGŁÓWEK DOKUMENTU */
+        .doc-header {
+            text-align: center;
+            margin-bottom: 2cm;
+            border-bottom: 0.5pt solid #000;
+            padding-bottom: 10px;
+        }
+
+        .doc-title {
+            font-size: 20pt;
+            font-weight: bold;
+            letter-spacing: 1pt;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .doc-subtitle {
+            font-size: 10pt;
+            font-style: italic;
+            margin-top: 5px;
+        }
+
+        /* SEKCJE */
+        .section-header {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 20pt;
+            margin-bottom: 10pt;
+            border-bottom: 0.5pt solid #ccc;
+            font-variant: small-caps;
+        }
+
+        /* TABELA DANYCH */
+        .metadata-table {
+            width: 100%;
+            margin-bottom: 15pt;
+        }
+
+        .metadata-table td {
+            padding: 4pt 0;
+            vertical-align: top;
+        }
+
+        .label {
+            font-weight: bold;
+            width: 150px;
+        }
+
+        .value-id {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 9pt;
+        }
+
+        /* OPIS */
+        .description-content {
+            margin: 10pt 0;
+            padding: 10pt;
+            background-color: #fcfcfc;
+            border: 0.2pt solid #eee;
+            min-height: 50pt;
+        }
+
+        /* TABELA PODZADAŃ */
+        .subtasks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10pt;
+        }
+
+        .subtasks-table th {
+            border-top: 1.5pt solid #000;
+            border-bottom: 0.8pt solid #000;
+            padding: 8pt;
+            text-align: left;
+            font-size: 10pt;
+            background-color: #f9f9f9;
+        }
+
+        .subtasks-table td {
+            border-bottom: 0.5pt solid #eee;
+            padding: 8pt;
+            font-size: 10pt;
+        }
+
+        .subtasks-table tr:last-child td {
+            border-bottom: 1.5pt solid #000;
+        }
+
+        /* STATUSY */
+        .status {
+            font-weight: bold;
+            font-size: 9pt;
+            padding: 2pt 5pt;
+            border: 0.5pt solid #000;
+        }
+
+        /* STOPKA ZAMYKAJĄCA */
+        .closing-mark {
+            margin-top: 30pt;
+            text-align: center;
+            font-size: 9pt;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="doc-header">
+    <h1 class="doc-title">Raport Techniczny Zadania</h1>
+    <div class="doc-subtitle">System Zarządzania ModularTask | Archiwum Dokumentacji</div>
+</div>
+
+<div class="section-header">1. Specyfikacja Zadania</div>
+<table class="metadata-table">
+    <tr>
+        <td class="label">Identyfikator (UUID):</td>
+        <td class="value-id" th:text="${task.id}">00000000-0000-0000-0000-000000000000</td>
+    </tr>
+    <tr>
+        <td class="label">Tytuł Zadania:</td>
+        <td th:text="${task.title}">Nienazwane zadanie</td>
+    </tr>
+    <tr>
+        <td class="label">Status Zadania:</td>
+        <td><span class="status" th:text="${task.status}">UNDEFINED</span></td>
+    </tr>
+    <tr>
+        <td class="label">Data generowania:</td>
+        <td th:text="${#temporals.format(reportDate, 'dd MMMM yyyy HH:mm', #locale.forLanguageTag('pl'))}">01 stycznia 1970</td>
+    </tr>
+    <tr>
+        <td class="label">Autor:</td>
+        <td th:text="${generatedBy}">Nieznany system</td>
+    </tr>
+</table>
+
+<div class="section-header">2. Opis Przedmiotu Prac</div>
+<div class="description-content">
+    <p th:if="${task.description != null}" th:text="${task.description}">Tabela opisu zadania.</p>
+    <p th:if="${task.description == null}"><i>Brak dodatkowego opisu merytorycznego dla wybranego zadania.</i></p>
+</div>
+
+<div class="section-header">3. Wykaz Podzadań i Hierarchia</div>
+<table class="subtasks-table">
+    <thead>
+    <tr>
+        <th style="width: 30px;">Lp.</th>
+        <th>Nazwa (Tytuł)</th>
+        <th style="width: 180px;">Wykonawcy</th> <th style="width: 100px;">Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="sub, iter : ${subtasks}">
+        <td th:text="${iter.count} + '.'">1.</td>
+        <td th:text="${sub.title}">Przykładowe podzadanie</td>
+
+        <td>
+            <span th:if="${not #lists.isEmpty(sub.assignees)}"
+                  th:each="user, userIter : ${sub.assignees}"
+                  th:text="${user.firstName} + ' ' + ${user.lastName} + ${!userIter.last ? ', ' : ''}">
+                Jan Kowalski
+            </span>
+            <span th:if="${#lists.isEmpty(sub.assignees)}"
+                  style="color: #999; font-style: italic; font-size: 9pt;">
+                Nieprzypisane
+            </span>
+        </td>
+
+        <td><span class="status" th:text="${sub.status}">PENDING</span></td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(subtasks)}">
+        <td colspan="4" style="text-align: center; padding: 20pt; color: #666;">
+            Brak zarejestrowanych podzadań.
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="section-header">4. Walidacja i Podpisy</div>
+<p style="font-size: 9pt;">
+    Niniejszy raport stanowi odzwierciedlenie stanu bazy danych systemu ModularTask na dzień generowania dokumentu.
+    Wszelkie zmiany wprowadzone po dacie <span th:text="${#temporals.format(reportDate, 'yyyy-MM-dd')}">2026-05-07</span> nie są uwzględnione.
+</p>
+
+<div class="closing-mark">
+    -- Dokument wygenerowany automatycznie --
+</div>
+
+</body>
+</html>
