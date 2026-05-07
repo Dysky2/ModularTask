@@ -3,6 +3,7 @@ package net.edu.modulartask.organization;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/organization")
-@CrossOrigin("http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class OrganizationUnitController {
 
 	@Autowired
@@ -28,12 +29,12 @@ public class OrganizationUnitController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(createdUnit);
 	}
 
-	@PatchMapping("/units/{unitId}/move")
+	@PatchMapping(value = "/units/{unitId}/move", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public OrganizationUnit moveUnit(@PathVariable UUID unitId, @RequestBody MoveOrganizationUnitDTO moveOrganizationUnitDTO) {
 		return organizationUnitService.moveUnit(unitId, moveOrganizationUnitDTO);
 	}
 
-	@PatchMapping("/units/{unitId}")
+	@PatchMapping(value = "/units/{unitId}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public OrganizationUnit renameUnit(@PathVariable UUID unitId, @Valid @RequestBody RenameOrganizationUnitDTO renameOrganizationUnitDTO) {
 		return organizationUnitService.renameUnit(unitId, renameOrganizationUnitDTO);
 	}
