@@ -1,6 +1,7 @@
 package net.edu.modulartask.notification;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Generated;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,13 +16,14 @@ import java.util.UUID;
 public class Notification {
 
     @Id
-    @Generated
+    @GeneratedValue
     public UUID id;
 
     public String title;
 
     public String message;
 
+    @Enumerated(EnumType.STRING)
     public NotificationStatus status;
 
     @ManyToOne
@@ -31,4 +33,5 @@ public class Notification {
     @ManyToOne
     @JoinColumn(name = "target_id")
     public User target;
+
 }

@@ -221,7 +221,9 @@ public class TaskService {
                 if(subtask.assigneeId() != null) {
                     User user = userService.findById(subtask.assigneeId());
                     task.getAssignees().add(user);
-                    notificationProducer.sendNotification("You are assignee to new task", subtask.title(), subtask.assigneeId());
+                    if(!subtask.assigneeId().equals(loggedUser.getId())) {
+                        notificationService.createNotification("You are assignee to new task", subtask.title(), loggedUser, user);
+                    }
                 }
 
                 updatePoolStatusByCapacity(task);
@@ -244,7 +246,7 @@ public class TaskService {
 
         for(var assigneeId : assigneeIds) {
             if(loggedUser == null || !assigneeId.equals(loggedUser.getId())) {
-                notificationProducer.sendNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), assigneeId);
+                notificationService.createNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), loggedUser ,userService.findById(assigneeId));
             }
         }
 
