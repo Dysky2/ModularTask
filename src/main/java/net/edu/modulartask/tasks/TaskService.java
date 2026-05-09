@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
-import net.edu.modulartask.notification.NotificationProducer;
 import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.subtask.SubTaskDTO;
 import net.edu.modulartask.user.User;
@@ -33,9 +32,6 @@ public class TaskService {
 
     @Autowired
     NotificationService notificationService;
-
-    @Autowired
-    private NotificationProducer notificationProducer;
 
     @Autowired
     JwtService jwtService;
