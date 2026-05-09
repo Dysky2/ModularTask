@@ -1,8 +1,6 @@
 package net.edu.modulartask.notification;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Generated;
 import lombok.Getter;
 import lombok.Setter;
 import net.edu.modulartask.user.User;
