@@ -83,8 +83,7 @@ public class TaskCommentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment content is empty");
         }
 
-        TaskComment comment = taskCommentRepository.findById(commentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+        TaskComment comment = findCommentById(commentId);
         validateCommentBelongsToTask(comment, taskId);
 
         var currentUser = userService.getCurrentlyLoggedUser();
@@ -104,8 +103,7 @@ public class TaskCommentService {
 
     @Transactional
     public void deleteComment(UUID taskId, UUID commentId) {
-        TaskComment comment = taskCommentRepository.findById(commentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+        TaskComment comment = findCommentById(commentId);
         validateCommentBelongsToTask(comment, taskId);
 
         var currentUser = userService.getCurrentlyLoggedUser();
@@ -121,6 +119,11 @@ public class TaskCommentService {
         logTaskHistory(task, currentUser, "COMMENT_DELETED", details);
     }
 
+
+    private TaskComment findCommentById(UUID commentId) {
+        return taskCommentRepository.findById(commentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+    }
 
     private void validateCommentBelongsToTask(TaskComment comment, UUID taskId) {
         if (!comment.getTask().getId().equals(taskId)) {
