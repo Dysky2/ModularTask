@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
-import net.edu.modulartask.notification.NotificationProducer;
 import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.subtask.SubTaskDTO;
 import net.edu.modulartask.user.User;
@@ -33,9 +32,6 @@ public class TaskService {
 
     @Autowired
     NotificationService notificationService;
-
-    @Autowired
-    private NotificationProducer notificationProducer;
 
     @Autowired
     JwtService jwtService;
@@ -132,7 +128,7 @@ public class TaskService {
     public List<Task> getAllTaskForApproval() {
         User user = userService.getCurrentlyLoggedUser();
 
-        return taskRepository.findALlByCreatorIdAndStatus(user.getId() ,TaskStatus.PENDING_ACCEPTANCE);
+        return taskRepository.findAllTasksByCreatorIdAndStatus(user.getId() ,TaskStatus.PENDING_ACCEPTANCE.name());
     }
 
     public ResponseEntity<Map<String,String>> changeStatus(UUID taskID, TaskStatus status) {
@@ -147,6 +143,18 @@ public class TaskService {
         task.setStatus(status);
 
         taskRepository.save(task);
+
+        User creatorUser = getCreator(task);
+
+        if(!user.getId().equals(creatorUser.getId())) {
+            notificationService.createNotification(
+                    "Task is pending to accept",
+                    user.getUsername() + " finished task " + task.getTitle(),
+                    user,
+                    creatorUser
+            );
+        }
+
 
         return ResponseEntity.ok(Map.of("message", "Task change status to approved by creator"));
     }
@@ -221,7 +229,9 @@ public class TaskService {
                 if(subtask.assigneeId() != null) {
                     User user = userService.findById(subtask.assigneeId());
                     task.getAssignees().add(user);
-                    notificationProducer.sendNotification("You are assignee to new task", subtask.title(), subtask.assigneeId());
+                    if(!subtask.assigneeId().equals(loggedUser.getId())) {
+                        notificationService.createNotification("You are assignee to new task", subtask.title(), loggedUser, user);
+                    }
                 }
 
                 updatePoolStatusByCapacity(task);
@@ -244,7 +254,7 @@ public class TaskService {
 
         for(var assigneeId : assigneeIds) {
             if(loggedUser == null || !assigneeId.equals(loggedUser.getId())) {
-                notificationProducer.sendNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), assigneeId);
+                notificationService.createNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), loggedUser ,userService.findById(assigneeId));
             }
         }
 
@@ -417,6 +427,17 @@ public class TaskService {
 
         taskRepository.save(task);
 
+        task.getAssignees().forEach(assign -> {
+            if(!assign.getId().equals(user.getId())) {
+                notificationService.createNotification(
+                        "Task " + task.getTitle(),
+                        "Is approved by " + user.getUsername(),
+                        user,
+                        assign
+                );
+            }
+        });
+
         logTaskHistory(task, user, "STATUS_CHANGED", "Task ACCEPTED and COMPLETED");
 
         return ResponseEntity.ok(Map.of("message", "Task is completed"));
@@ -435,6 +456,18 @@ public class TaskService {
         task.setStatus(TaskStatus.IN_PROGRESS);
 
         taskRepository.save(task);
+
+        task.getAssignees().forEach(assign -> {
+            if(!assign.getId().equals(user.getId())) {
+                notificationService.createNotification(
+                        "Task " + task.getTitle(),
+                        "Is rejected by " + user.getUsername() + " " + reason,
+                        user,
+                        assign
+                );
+            }
+        });
+
 
         logTaskHistory(task, user, "STATUS_CHANGED", "Task REJECTED. Moved to IN_PROGRESS. Comment: " + reason);
 
@@ -471,13 +504,21 @@ public class TaskService {
 
         logTaskHistory(task, user, "TASK_TAKEN", "User took the task");
 
-        if(task.getCreator() != null && task.getCreator() != user){
-            notificationProducer.sendNotification(
+        User creatorUser = getCreator(task);
+
+        if(creatorUser == null) {
+            throw new UserNotFoundException("Creator of this task is not exist");
+        }
+
+        if(!user.getId().equals(creatorUser.getId())) {
+            notificationService.createNotification(
                     "Task taken",
                     "User " + user.getUsername() + " has taken task created by you: " + task.getTitle(),
-                    task.getCreator().getId()
+                    user,
+                    creatorUser
             );
         }
+
     }
 
     public void startWork(UUID taskId) {
@@ -502,11 +543,14 @@ public class TaskService {
 
         logTaskHistory(task, user, "STATUS_CHANGED", "Status changed to IN_PROGRESS. Work started.");
 
-        if(task.getCreator() != null && task.getCreator() != user){
-            notificationProducer.sendNotification(
+        User creatorUser = getCreator(task);
+
+        if(!user.getId().equals(creatorUser.getId())) {
+            notificationService.createNotification(
                     "Work started on task",
                     "User " + user.getUsername() + " has started work on your task: " + task.getTitle(),
-                    task.getCreator().getId()
+                    user,
+                    creatorUser
             );
         }
 
