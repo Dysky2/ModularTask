@@ -52,6 +52,9 @@ public class TaskService {
     }
 
     private TaskStatus getUserStatus(Task task, User user) {
+        if (task.getStatus() != TaskStatus.IN_POOL) {
+            return task.getStatus();
+        }
         return isUserAssignedToTask(task, user) ? TaskStatus.NEW : TaskStatus.IN_POOL;
     }
 
@@ -81,6 +84,25 @@ public class TaskService {
         return tasks.stream()
                 .map(task -> toResponseDTO(task, currentUser))
                 .toList();
+    }
+
+    public TaskDetailsResponseDTO toDetailsResponseDTO(Task task, User currentUser) {
+        List<TaskResponseDTO> subtaskDtos = toResponseDTOList(task.getSubtasks(), currentUser);
+
+        return new TaskDetailsResponseDTO(
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getStatus(),
+                getUserStatus(task, currentUser),
+                task.getAssignees(),
+                task.getLimit(),
+                task.getDeadline(),
+                task.getCreatedAt(),
+                task.getCreator(),
+                task.getParentTask() == null ? null : task.getParentTask().getId(),
+                subtaskDtos
+        );
     }
 
     public Task findById(UUID taskId) {
