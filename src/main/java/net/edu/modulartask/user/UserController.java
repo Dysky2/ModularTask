@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -41,5 +42,16 @@ public class UserController {
     public ResponseEntity<ProfileDetailsDTO> updateUserDetails(@RequestBody String description){
         ProfileDetailsDTO details = userService.updateUserDetails(description);
         return ResponseEntity.ok(details);
+    }
+
+    @PutMapping("/{userId}")
+    public ResponseEntity<Map<String, String>> updateUser(@PathVariable(name = "userId") UUID userId,
+                                                          @Valid @RequestBody UpdateUserDTO updateUserDTO) {
+        return userService.updateUser(userId, updateUserDTO);
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable(name = "userId") UUID userId) {
+        return userService.deleteUser(userId);
     }
 }
