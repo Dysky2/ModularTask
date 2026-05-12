@@ -13,7 +13,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/tasks")
-@CrossOrigin("http://localhost:5173")
 public class TaskController {
 
     @Autowired
