@@ -42,4 +42,60 @@ public class UserController {
         ProfileDetailsDTO details = userService.updateUserDetails(description);
         return ResponseEntity.ok(details);
     }
+
+    @PatchMapping("/profile/me")
+    public ResponseEntity<ProfileDetailsDTO> updateProfile(@RequestBody UpdateProfileDTO updateProfileDTO) {
+        ProfileDetailsDTO details = userService.updateProfile(updateProfileDTO);
+        return ResponseEntity.ok(details);
+    }
+
+    @PatchMapping("/profile/me/password")
+    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordDTO changePasswordDTO) {
+        userService.changePassword(changePasswordDTO);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/profile/me/2fa/disable")
+    public ResponseEntity<Void> disableTwoFactorAuth() {
+        userService.disableTwoFactorAuth();
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/profile/me")
+    public ResponseEntity<Void> deleteMyAccount() {
+        userService.anonymizeCurrentUser();
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/settings/notifications")
+    public ResponseEntity<NotificationSettingsDTO> getNotificationSettings() {
+        return ResponseEntity.ok(userService.getNotificationSettings());
+    }
+
+    @PutMapping("/settings/notifications")
+    public ResponseEntity<NotificationSettingsDTO> updateNotificationSettings(
+            @RequestBody NotificationSettingsDTO notificationSettingsDTO) {
+        return ResponseEntity.ok(userService.updateNotificationSettings(notificationSettingsDTO));
+    }
+
+    @PatchMapping("/settings/notifications")
+    public ResponseEntity<NotificationSettingsDTO> patchNotificationSettings(
+            @RequestBody NotificationSettingsDTO notificationSettingsDTO) {
+        return ResponseEntity.ok(userService.updateNotificationSettings(notificationSettingsDTO));
+    }
+
+    @GetMapping("/settings/preferences")
+    public ResponseEntity<UserPreferencesDTO> getPreferences() {
+        return ResponseEntity.ok(userService.getPreferences());
+    }
+
+    @PutMapping("/settings/preferences")
+    public ResponseEntity<UserPreferencesDTO> updatePreferences(@RequestBody UserPreferencesDTO userPreferencesDTO) {
+        return ResponseEntity.ok(userService.updatePreferences(userPreferencesDTO));
+    }
+
+    @PatchMapping("/settings/preferences")
+    public ResponseEntity<UserPreferencesDTO> patchPreferences(@RequestBody UserPreferencesDTO userPreferencesDTO) {
+        return ResponseEntity.ok(userService.updatePreferences(userPreferencesDTO));
+    }
 }

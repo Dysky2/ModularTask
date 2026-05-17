@@ -9,5 +9,5 @@ public record CreateUserDTO(
     @NotBlank String email,
     @NotBlank String password,
     UserRole role,
-    boolean isActive
+    Boolean isActive
 ) { }

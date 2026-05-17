@@ -6,6 +6,8 @@ import net.edu.modulartask.exceptions.AccountDisabledException;
 import net.edu.modulartask.exceptions.DuplicateEmailException;
 import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
+import net.edu.modulartask.exceptions.UnauthorizedAdminActionException;
+import net.edu.modulartask.exceptions.UnauthorizedException;
 import net.edu.modulartask.organization.OrganizationUnit;
 import net.edu.modulartask.tasks.TaskHistory;
 import net.edu.modulartask.tasks.TaskHistoryRepository;
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import net.edu.modulartask.admin.SystemConfig;
+import net.edu.modulartask.admin.SystemConfigRepository;
 
 @Service
 public class UserService {
@@ -28,17 +32,27 @@ public class UserService {
     private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
+    private UserNotificationSettingsRepository userNotificationSettingsRepository;
+
+    @Autowired
+    private UserPreferencesRepository userPreferencesRepository;
+
+    @Autowired
+    private SystemConfigRepository systemConfigRepository;
+
+    @Autowired
     TwoFactorService twoFactorService;
 
     @Autowired
     TaskHistoryRepository taskHistoryRepository;
 
     public List<User> getAllUsers() {
+        ensureAdminPrivileges();
         return userRepository.findAll();
     }
 
     public User getUserById(UUID id) {
-        return userRepository.getUserById(id);
+        return findById(id);
     }
 
     public User getUserByUsername(String username) {
@@ -69,7 +83,7 @@ public class UserService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new RuntimeException("No logged user");
+            throw new UnauthorizedException("No logged user");
         }
 
         String username = authentication.getName();
@@ -79,6 +93,7 @@ public class UserService {
 
     @Transactional
     public User createUser(CreateUserDTO createUserDTO) {
+        ensureAdminPrivileges();
 
         if(createUserDTO.email() == null || createUserDTO.email().isBlank()) {
             throw new IllegalArgumentException("Email is empty");
@@ -104,12 +119,14 @@ public class UserService {
         user.setEmail(createUserDTO.email());
 
         String planPassword = createUserDTO.password();
+        validatePasswordPolicy(planPassword);
 
         String hashedPassword = passwordEncoder.encode(planPassword);
 
         user.setPassword(hashedPassword);
         user.setRole(createUserDTO.role());
-        user.setActive(createUserDTO.isActive());
+        boolean isActive = createUserDTO.isActive() == null || createUserDTO.isActive();
+        user.setActive(isActive);
         user.setCreatedAt(LocalDateTime.now());
 
         return userRepository.save(user);
@@ -209,6 +226,8 @@ public class UserService {
                 user.getEmail(),
                 user.getRole(),
                 user.getDescription(),
+                user.getPosition(),
+                user.getAvatarUrl(),
                 user.getOrganizationUnit(),
                 user.isActive(),
                 recentActivity
@@ -218,7 +237,7 @@ public class UserService {
     }
 
     public ProfileDetailsDTO updateUserDetails(String description){
-        if(description.isEmpty()){
+        if(description == null || description.isBlank()){
             throw new IllegalArgumentException("Description is empty");
         }
 
@@ -232,4 +251,193 @@ public class UserService {
 
         return getProfileDetails();
     }
+
+    public ProfileDetailsDTO updateProfile(UpdateProfileDTO updateProfileDTO) {
+        User user = getCurrentlyLoggedUser();
+        if (user == null) {
+            throw new UserNotFoundException("User not found");
+        }
+
+        if (updateProfileDTO.firstName() != null && !updateProfileDTO.firstName().isBlank()) {
+            user.setFirstName(updateProfileDTO.firstName());
+        }
+        if (updateProfileDTO.lastName() != null && !updateProfileDTO.lastName().isBlank()) {
+            user.setLastName(updateProfileDTO.lastName());
+        }
+        if (updateProfileDTO.position() != null && !updateProfileDTO.position().isBlank()) {
+            user.setPosition(updateProfileDTO.position());
+        }
+        if (updateProfileDTO.avatarUrl() != null && !updateProfileDTO.avatarUrl().isBlank()) {
+            user.setAvatarUrl(updateProfileDTO.avatarUrl());
+        }
+        if (updateProfileDTO.description() != null && !updateProfileDTO.description().isBlank()) {
+            user.setDescription(updateProfileDTO.description());
+        }
+
+        userRepository.save(user);
+        return getProfileDetails();
+    }
+
+    public void changePassword(ChangePasswordDTO dto) {
+        User user = getCurrentlyLoggedUser();
+        if (user == null) {
+            throw new UserNotFoundException("User not found");
+        }
+        if (dto.currentPassword() == null || dto.currentPassword().isBlank()) {
+            throw new IllegalArgumentException("Current password is empty");
+        }
+        if (!passwordEncoder.matches(dto.currentPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Current password is invalid");
+        }
+        if (dto.newPassword() == null || dto.newPassword().isBlank()) {
+            throw new IllegalArgumentException("New password is empty");
+        }
+        validatePasswordPolicy(dto.newPassword());
+
+        user.setPassword(passwordEncoder.encode(dto.newPassword()));
+        userRepository.save(user);
+    }
+
+    public void disableTwoFactorAuth() {
+        User user = getCurrentlyLoggedUser();
+        if (user == null) {
+            throw new UserNotFoundException("User not found");
+        }
+        user.setTwoFactorAuthKey(null);
+        user.setTwoFactorAuthEnabled(false);
+        userRepository.save(user);
+    }
+
+    public void anonymizeCurrentUser() {
+        User user = getCurrentlyLoggedUser();
+        if (user == null) {
+            throw new UserNotFoundException("User not found");
+        }
+        String anonymizedEmail = "deleted_" + user.getId() + "@deleted.local";
+        user.setUsername("deleted_" + user.getId());
+        user.setFirstName(null);
+        user.setLastName(null);
+        user.setEmail(anonymizedEmail);
+        user.setDescription(null);
+        user.setPosition(null);
+        user.setAvatarUrl(null);
+        user.setOrganizationUnit(null);
+        user.setActive(false);
+        userRepository.save(user);
+    }
+
+    public NotificationSettingsDTO getNotificationSettings() {
+        User user = getCurrentlyLoggedUser();
+        UserNotificationSettings settings = userNotificationSettingsRepository.findByUserId(user.getId())
+                .orElseGet(() -> createDefaultNotificationSettings(user));
+        return new NotificationSettingsDTO(
+                settings.isNotifyOnAssignment(),
+                settings.isNotifyOnMention(),
+                settings.isNotifyOnStatusChange(),
+                settings.isDailyDigestEnabled()
+        );
+    }
+
+    public NotificationSettingsDTO updateNotificationSettings(NotificationSettingsDTO dto) {
+        User user = getCurrentlyLoggedUser();
+        UserNotificationSettings settings = userNotificationSettingsRepository.findByUserId(user.getId())
+                .orElseGet(() -> createDefaultNotificationSettings(user));
+
+        settings.setNotifyOnAssignment(dto.notifyOnAssignment());
+        settings.setNotifyOnMention(dto.notifyOnMention());
+        settings.setNotifyOnStatusChange(dto.notifyOnStatusChange());
+        settings.setDailyDigestEnabled(dto.dailyDigestEnabled());
+        userNotificationSettingsRepository.save(settings);
+
+        return new NotificationSettingsDTO(
+                settings.isNotifyOnAssignment(),
+                settings.isNotifyOnMention(),
+                settings.isNotifyOnStatusChange(),
+                settings.isDailyDigestEnabled()
+        );
+    }
+
+    public UserPreferencesDTO getPreferences() {
+        User user = getCurrentlyLoggedUser();
+        UserPreferences preferences = userPreferencesRepository.findByUserId(user.getId())
+                .orElseGet(() -> createDefaultPreferences(user));
+
+        return new UserPreferencesDTO(preferences.getTheme(), preferences.getLanguage());
+    }
+
+    public UserPreferencesDTO updatePreferences(UserPreferencesDTO dto) {
+        User user = getCurrentlyLoggedUser();
+        UserPreferences preferences = userPreferencesRepository.findByUserId(user.getId())
+                .orElseGet(() -> createDefaultPreferences(user));
+
+        if (dto.theme() != null && !dto.theme().isBlank()) {
+            preferences.setTheme(dto.theme());
+        }
+        if (dto.language() != null && !dto.language().isBlank()) {
+            preferences.setLanguage(dto.language());
+        }
+        userPreferencesRepository.save(preferences);
+
+        return new UserPreferencesDTO(preferences.getTheme(), preferences.getLanguage());
+    }
+
+    private UserNotificationSettings createDefaultNotificationSettings(User user) {
+        if (user.getId() == null) {
+            throw new IllegalStateException("User id is null");
+        }
+        UserNotificationSettings settings = new UserNotificationSettings();
+        settings.setUser(user);
+        settings.setUserId(user.getId());
+        return userNotificationSettingsRepository.save(settings);
+    }
+
+    private UserPreferences createDefaultPreferences(User user) {
+        if (user.getId() == null) {
+            throw new IllegalStateException("User id is null");
+        }
+        UserPreferences preferences = new UserPreferences();
+        preferences.setUser(user);
+        preferences.setUserId(user.getId());
+        return userPreferencesRepository.save(preferences);
+    }
+
+    private void validatePasswordPolicy(String password) {
+        int minLength = getIntConfig("PASSWORD_MIN_LENGTH", 8);
+        boolean requireSpecial = getBooleanConfig("PASSWORD_REQUIRE_SPECIAL", false);
+
+        if (password == null || password.length() < minLength) {
+            throw new IllegalArgumentException("Password must be at least " + minLength + " characters");
+        }
+        if (requireSpecial && password.chars().noneMatch(ch -> !Character.isLetterOrDigit(ch))) {
+            throw new IllegalArgumentException("Password must include a special character");
+        }
+    }
+
+    private void ensureAdminPrivileges() {
+        User currentUser = getCurrentlyLoggedUser();
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new UnauthorizedAdminActionException("Only administrator can perform this action");
+        }
+    }
+
+    private int getIntConfig(String key, int defaultValue) {
+        return systemConfigRepository.findById(key)
+                .map(SystemConfig::getConfigValue)
+                .map(value -> {
+                    try {
+                        return Integer.parseInt(value);
+                    } catch (NumberFormatException e) {
+                        return defaultValue;
+                    }
+                })
+                .orElse(defaultValue);
+    }
+
+    private boolean getBooleanConfig(String key, boolean defaultValue) {
+        return systemConfigRepository.findById(key)
+                .map(SystemConfig::getConfigValue)
+                .map(value -> value.equalsIgnoreCase("true"))
+                .orElse(defaultValue);
+    }
+
 }

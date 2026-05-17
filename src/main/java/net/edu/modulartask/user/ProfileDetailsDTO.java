@@ -12,6 +12,8 @@ public record ProfileDetailsDTO(
         String email,
         UserRole role,
         String description,
+        String position,
+        String avatarUrl,
         OrganizationUnit organizationUnit,
         boolean isActive,
         List<UserActivityDTO> recentActivity
