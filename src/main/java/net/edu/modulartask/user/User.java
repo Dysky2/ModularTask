@@ -1,6 +1,8 @@
 package net.edu.modulartask.user;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -37,6 +39,7 @@ public class User {
     @Email(message = "Email should be valid")
     private String email;
 
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -52,6 +55,8 @@ public class User {
     private Set<Task> assignedTasks = new HashSet<>();
 
     @Column(name = "is_active")
+    @JsonProperty("isActive")
+    @JsonAlias("active")
     private boolean isActive;
 
     @Column(name = "created_at")
@@ -65,4 +70,10 @@ public class User {
 
     @Column(name = "description")
     private String description;
+
+    @Column(name = "position")
+    private String position;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 }

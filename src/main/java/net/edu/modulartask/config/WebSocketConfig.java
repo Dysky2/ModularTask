@@ -1,6 +1,7 @@
 package net.edu.modulartask.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -16,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.scheduling.TaskScheduler;
 
 import java.util.ArrayList;
 
@@ -27,9 +29,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    @Qualifier("wsTaskScheduler")
+    private TaskScheduler messageBrokerTaskScheduler;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic");
+        config.enableSimpleBroker("/topic")
+                .setHeartbeatValue(new long[]{10000, 10000})
+                .setTaskScheduler(messageBrokerTaskScheduler);
         config.setApplicationDestinationPrefixes("/app");
     }
 
@@ -64,4 +72,5 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             }
         });
     }
+
 }

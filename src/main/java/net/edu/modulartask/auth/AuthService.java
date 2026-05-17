@@ -50,6 +50,8 @@ public class AuthService {
         );
 
         if(isPasswordCorrect) {
+            userService.validateActiveUser(user.getUsername());
+
             if(user.isTwoFactorAuthEnabled()) {
                 return ResponseEntity.ok(Map.of("2fa_required", true, "username", user.getUsername()));
             }
@@ -112,6 +114,8 @@ public class AuthService {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
         }
 
+        userService.validateActiveUser(user.getUsername());
+
         GoogleAuthenticator googleAuthenticator = new GoogleAuthenticator();
 
         try {
@@ -119,7 +123,11 @@ public class AuthService {
 
             if(googleAuthenticator.authorize(key, twoFactorLoginRequest.code())) {
                 String token = jwtService.generateToken(user);
-                return ResponseEntity.ok(Map.of("token", token));
+                return ResponseEntity.ok(Map.of(
+                        "token", token,
+                        "role", user.getRole().name(),
+                        "isAdmin", user.getRole().name().equals("ADMIN")
+                ));
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
             }
