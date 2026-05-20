@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import net.edu.modulartask.admin.SystemConfig;
 import net.edu.modulartask.admin.SystemConfigRepository;
@@ -447,4 +448,26 @@ public class UserService {
                 .orElse(defaultValue);
     }
 
+    @Transactional
+    public ResponseEntity<Map<String, String>> updateUser(UUID userId, UpdateUserDTO updateUserDTO) {
+        User user = findById(userId);
+
+        user.setFirstName(updateUserDTO.firstName());
+        user.setLastName(updateUserDTO.lastName());
+        user.setEmail(updateUserDTO.email());
+        user.setRole(updateUserDTO.role());
+        user.setActive(updateUserDTO.isActive());
+
+        return ResponseEntity.ok(Map.of("message", "User updated"));
+    }
+
+    @Transactional
+    public ResponseEntity<Map<String, String>> deleteUser(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException("User " + userId + " not found");
+        }
+
+        userRepository.deleteById(userId);
+        return ResponseEntity.ok(Map.of("message", "User deleted"));
+    }
 }

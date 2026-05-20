@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -97,5 +98,14 @@ public class UserController {
     @PatchMapping("/settings/preferences")
     public ResponseEntity<UserPreferencesDTO> patchPreferences(@RequestBody UserPreferencesDTO userPreferencesDTO) {
         return ResponseEntity.ok(userService.updatePreferences(userPreferencesDTO));
+    @PutMapping("/{userId}")
+    public ResponseEntity<Map<String, String>> updateUser(@PathVariable(name = "userId") UUID userId,
+                                                          @Valid @RequestBody UpdateUserDTO updateUserDTO) {
+        return userService.updateUser(userId, updateUserDTO);
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable(name = "userId") UUID userId) {
+        return userService.deleteUser(userId);
     }
 }

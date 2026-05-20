@@ -4,8 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +21,9 @@ public class TaskController {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    private TaskCommentService taskCommentService;
 
     @GetMapping("my")
     public List<TaskResponseDTO> getMyTasks(HttpServletRequest request) {
@@ -44,11 +46,47 @@ public class TaskController {
         return taskService.toResponseDTOList(tasks, currentUser);
     }
 
+    @GetMapping("/aprroval")
+    public List<TaskResponseDTO> getAllTasksApproval() {
+        List<Task> tasks = taskService.getAllTaskForApproval();
+        var currentUser = userService.getCurrentlyLoggedUser();
+        return taskService.toResponseDTOList(tasks, currentUser);
+    }
+
+    @PostMapping("/{taskId}/pending_acceptance")
+    public ResponseEntity<Map<String,String>> changeStatusToPendingAcceptance(@PathVariable(name = "taskId") UUID taskId) {
+        return taskService.changeStatus(taskId, TaskStatus.PENDING_ACCEPTANCE);
+    }
+
+    @PostMapping("/{taskId}/approve")
+    public ResponseEntity<Map<String,String>> taskApproved(@PathVariable(name = "taskId") UUID taskId) {
+        return taskService.acceptTask(taskId);
+    }
+
+    @PostMapping("/{taskId}/reject")
+    public ResponseEntity<Map<String,String>> taskRejected(@PathVariable(name = "taskId") UUID taskId, @RequestBody String reason) {
+        return taskService.rejectTask(taskId, reason);
+    }
+
+    @GetMapping("/{taskId}/raport")
+    public ResponseEntity<byte[]> generateReport(@PathVariable(name = "taskId") UUID taskId) {
+
+        byte[] pdfContent = taskService.generateReport(taskId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+
+        String fileName = "Raport_zadania_" + taskId + ".pdf";
+        headers.setContentDisposition(ContentDisposition.builder("attachment").filename(fileName).build());
+
+        return ResponseEntity.ok().headers(headers).contentLength(pdfContent.length).body(pdfContent);
+    }
+
     @GetMapping("/{taskId}")
-    public TaskResponseDTO getTaskById(@PathVariable(name = "taskId") UUID taskId) {
+    public TaskDetailsResponseDTO getTaskById(@PathVariable(name = "taskId") UUID taskId) {
         Task task = taskService.findById(taskId);
         var currentUser = userService.getCurrentlyLoggedUser();
-        return taskService.toResponseDTO(task, currentUser);
+        return taskService.toDetailsResponseDTO(task, currentUser);
     }
 
     @GetMapping("/{taskId}/assign/{userId}")
@@ -85,6 +123,39 @@ public class TaskController {
     public ResponseEntity<Map<String,String>> startWork(@PathVariable(name = "taskId") UUID taskId){
         taskService.startWork(taskId);
         return ResponseEntity.ok(Map.of("message","You have started working on the task"));
+    }
+
+    @PostMapping("/{taskId}/comments")
+    public ResponseEntity<CommentResponseDTO> addComment(
+            @PathVariable("taskId") UUID taskId,
+            @Valid @RequestBody CreateCommentDTO dto) {
+
+        CommentResponseDTO created = taskCommentService.addComment(taskId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/{taskId}/comments")
+    public List<CommentResponseDTO> getComments(@PathVariable("taskId") UUID taskId) {
+        return taskCommentService.getCommentsTree(taskId);
+    }
+
+    @PutMapping("/{taskId}/comments/{commentId}")
+    public ResponseEntity<CommentResponseDTO> updateComment(
+            @PathVariable("taskId") UUID taskId,
+            @PathVariable("commentId") UUID commentId,
+            @Valid @RequestBody CreateCommentDTO dto) {
+
+        CommentResponseDTO updated = taskCommentService.updateComment(taskId, commentId, dto);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{taskId}/comments/{commentId}")
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable("taskId") UUID taskId,
+            @PathVariable("commentId") UUID commentId) {
+
+        taskCommentService.deleteComment(taskId, commentId);
+        return ResponseEntity.noContent().build();
     }
 
 }

@@ -1,22 +1,25 @@
 package net.edu.modulartask.tasks;
 
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import net.edu.modulartask.config.JwtService;
 import net.edu.modulartask.exceptions.*;
-import net.edu.modulartask.notification.NotificationProducer;
 import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.subtask.SubTaskDTO;
 import net.edu.modulartask.user.User;
 import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class TaskService {
@@ -31,13 +34,13 @@ public class TaskService {
     NotificationService notificationService;
 
     @Autowired
-    private NotificationProducer notificationProducer;
-
-    @Autowired
     JwtService jwtService;
 
     @Autowired
     private TaskHistoryRepository taskHistoryRepository;
+
+    @Autowired
+    TemplateEngine templateEngine;
 
     private void logTaskHistory(Task task, User user, String action, String details){
         TaskHistory log = new TaskHistory(task, user, action, details);
@@ -49,6 +52,9 @@ public class TaskService {
     }
 
     private TaskStatus getUserStatus(Task task, User user) {
+        if (task.getStatus() != TaskStatus.IN_POOL) {
+            return task.getStatus();
+        }
         return isUserAssignedToTask(task, user) ? TaskStatus.NEW : TaskStatus.IN_POOL;
     }
 
@@ -78,6 +84,25 @@ public class TaskService {
         return tasks.stream()
                 .map(task -> toResponseDTO(task, currentUser))
                 .toList();
+    }
+
+    public TaskDetailsResponseDTO toDetailsResponseDTO(Task task, User currentUser) {
+        List<TaskResponseDTO> subtaskDtos = toResponseDTOList(task.getSubtasks(), currentUser);
+
+        return new TaskDetailsResponseDTO(
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getStatus(),
+                getUserStatus(task, currentUser),
+                task.getAssignees(),
+                task.getLimit(),
+                task.getDeadline(),
+                task.getCreatedAt(),
+                task.getCreator(),
+                task.getParentTask() == null ? null : task.getParentTask().getId(),
+                subtaskDtos
+        );
     }
 
     public Task findById(UUID taskId) {
@@ -120,6 +145,40 @@ public class TaskService {
 
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
+    }
+
+    public List<Task> getAllTaskForApproval() {
+        User user = userService.getCurrentlyLoggedUser();
+
+        return taskRepository.findAllTasksByCreatorIdAndStatus(user.getId() ,TaskStatus.PENDING_ACCEPTANCE.name());
+    }
+
+    public ResponseEntity<Map<String,String>> changeStatus(UUID taskID, TaskStatus status) {
+        Task task = findById(taskID);
+
+        User user = userService.getCurrentlyLoggedUser();
+
+        if(status.equals(TaskStatus.PENDING_ACCEPTANCE) && !task.getAssignees().contains(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "You are not part of the team"));
+        }
+
+        task.setStatus(status);
+
+        taskRepository.save(task);
+
+        User creatorUser = getCreator(task);
+
+        if(!user.getId().equals(creatorUser.getId())) {
+            notificationService.createNotification(
+                    "Task is pending to accept",
+                    user.getUsername() + " finished task " + task.getTitle(),
+                    user,
+                    creatorUser
+            );
+        }
+
+
+        return ResponseEntity.ok(Map.of("message", "Task change status to approved by creator"));
     }
 
     @Transactional
@@ -192,7 +251,9 @@ public class TaskService {
                 if(subtask.assigneeId() != null) {
                     User user = userService.findById(subtask.assigneeId());
                     task.getAssignees().add(user);
-                    notificationProducer.sendNotification("You are assignee to new task", subtask.title(), subtask.assigneeId());
+                    if(!subtask.assigneeId().equals(loggedUser.getId())) {
+                        notificationService.createNotification("You are assignee to new task", subtask.title(), loggedUser, user);
+                    }
                 }
 
                 updatePoolStatusByCapacity(task);
@@ -215,7 +276,7 @@ public class TaskService {
 
         for(var assigneeId : assigneeIds) {
             if(loggedUser == null || !assigneeId.equals(loggedUser.getId())) {
-                notificationProducer.sendNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), assigneeId);
+                notificationService.createNotification("You are manager of task " + parentTask.getTitle(), parentTask.getDescription(), loggedUser ,userService.findById(assigneeId));
             }
         }
 
@@ -344,40 +405,72 @@ public class TaskService {
         logTaskHistory(task, user, "STATUS_CHANGED", "Task submitted for report: " + title);
     }
 
-    public void acceptTask(UUID taskId, UUID creatorId) {
+    public User getCreator(Task task) {
+
+        if (task.getCreator() != null) {
+            return task.getCreator();
+        }
+
+        if (task.getParentTask() != null) {
+            return getCreator(task.getParentTask());
+        }
+
+        return null;
+    }
+
+    private void validateAccess(User user, Task task) {
+        User creatorUser = getCreator(task);
+
+        if (creatorUser == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Creator not found");
+        }
+
+        if (!user.getId().equals(creatorUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not qualified to perform this action");
+        }
+    }
+
+    public ResponseEntity<Map<String, String>> acceptTask(UUID taskId) {
         Task task = findById(taskId);
 
         List<Task> subTasks = taskRepository.findByParentTask(task);
 
-        User user = userService.findById(creatorId);
+        User user = userService.getCurrentlyLoggedUser();
 
-        if(!task.getCreator().getEmail().equals(user.getEmail())) {
-            throw new UserNotFoundException("User not exist");
-        }
-
-        // TODO
-        // sprawdzic czy napewno kazdy z subTaskow jest wykonany
+        validateAccess(user, task);
 
         for(var tempTask : subTasks) {
-            tempTask.setStatus(TaskStatus.COMPLETED);
+            if(!tempTask.getStatus().equals(TaskStatus.COMPLETED)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "All subtasks, are not finished"));
+            }
         }
 
         task.setStatus(TaskStatus.COMPLETED);
 
         taskRepository.save(task);
 
-        User currentUser = userService.getCurrentlyLoggedUser();
-        logTaskHistory(task, currentUser, "STATUS_CHANGED", "Task ACCEPTED and COMPLETED");
+        task.getAssignees().forEach(assign -> {
+            if(!assign.getId().equals(user.getId())) {
+                notificationService.createNotification(
+                        "Task " + task.getTitle(),
+                        "Is approved by " + user.getUsername(),
+                        user,
+                        assign
+                );
+            }
+        });
+
+        logTaskHistory(task, user, "STATUS_CHANGED", "Task ACCEPTED and COMPLETED");
+
+        return ResponseEntity.ok(Map.of("message", "Task is completed"));
     }
 
-    public void rejectTask(UUID taskId, UUID creatorId, String comment) {
+    public ResponseEntity<Map<String, String>> rejectTask(UUID taskId, String reason) {
         Task task = findById(taskId);
 
-        User user = userService.findById(creatorId);
+        User user = userService.getCurrentlyLoggedUser();
 
-        if(!task.getCreator().getEmail().equals(user.getEmail())) {
-            throw new UserNotFoundException("User not exist");
-        }
+        validateAccess(user, task);
 
         // TODO
         // dodanie komentarza do zadanie ze nie zostal zaakceptowany
@@ -386,8 +479,21 @@ public class TaskService {
 
         taskRepository.save(task);
 
-        User currentUser = userService.getCurrentlyLoggedUser();
-        logTaskHistory(task, currentUser, "STATUS_CHANGED", "Task REJECTED. Moved to IN_PROGRESS. Comment: " + comment);
+        task.getAssignees().forEach(assign -> {
+            if(!assign.getId().equals(user.getId())) {
+                notificationService.createNotification(
+                        "Task " + task.getTitle(),
+                        "Is rejected by " + user.getUsername() + " " + reason,
+                        user,
+                        assign
+                );
+            }
+        });
+
+
+        logTaskHistory(task, user, "STATUS_CHANGED", "Task REJECTED. Moved to IN_PROGRESS. Comment: " + reason);
+
+        return ResponseEntity.ok(Map.of("message", "Task is rejected"));
     }
 
     @Transactional
@@ -420,13 +526,21 @@ public class TaskService {
 
         logTaskHistory(task, user, "TASK_TAKEN", "User took the task");
 
-        if(task.getCreator() != null && task.getCreator() != user){
-            notificationProducer.sendNotification(
+        User creatorUser = getCreator(task);
+
+        if(creatorUser == null) {
+            throw new UserNotFoundException("Creator of this task is not exist");
+        }
+
+        if(!user.getId().equals(creatorUser.getId())) {
+            notificationService.createNotification(
                     "Task taken",
                     "User " + user.getUsername() + " has taken task created by you: " + task.getTitle(),
-                    task.getCreator().getId()
+                    user,
+                    creatorUser
             );
         }
+
     }
 
     public void startWork(UUID taskId) {
@@ -451,15 +565,50 @@ public class TaskService {
 
         logTaskHistory(task, user, "STATUS_CHANGED", "Status changed to IN_PROGRESS. Work started.");
 
-        if(task.getCreator() != null && task.getCreator() != user){
-            notificationProducer.sendNotification(
+        User creatorUser = getCreator(task);
+
+        if(!user.getId().equals(creatorUser.getId())) {
+            notificationService.createNotification(
                     "Work started on task",
                     "User " + user.getUsername() + " has started work on your task: " + task.getTitle(),
-                    task.getCreator().getId()
+                    user,
+                    creatorUser
             );
         }
 
     }
+
+    public byte[] generatePdfFromHtml(String html) {
+        try(ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.useFastMode();
+            builder.useFont(() -> getClass().getResourceAsStream("/fonts/Roboto-Regular.ttf"), "RobotoCustom");
+            builder.withHtmlContent(html, null);
+            builder.toStream(outputStream);
+            builder.run();
+            return outputStream.toByteArray();
+        } catch( Exception e) {
+            throw new RuntimeException("Error, while generator pdf from html");
+        }
+    }
+
+    public byte[] generateReport(UUID taskId) {
+        Task task = findById(taskId);
+
+        User user = userService.getCurrentlyLoggedUser();
+
+        Context context = new Context();
+        context.setVariable("task", task);
+        context.setVariable("subtasks", task.getSubtasks());
+        context.setVariable("generatedBy", user.getFirstName() + " " + user.getLastName());
+        context.setVariable("reportDate", LocalDateTime.now());
+        context.setVariable("generatedBy", user.getFirstName() + " " + user.getLastName());
+
+        String renderedHtmlContent = templateEngine.process("reportTemplate", context);
+
+        return generatePdfFromHtml(renderedHtmlContent);
+    }
+
 
 //    public Task createFromTemplate(UUID templateId, LocalDateTime deadline) {
 //        TaskTemplate taskTemplate = taskTemplateService.findById(templateId);
