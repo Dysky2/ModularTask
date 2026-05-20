@@ -89,12 +89,16 @@ public class AdminService {
 
     public IssuePriority updatePriority(UUID id, IssuePriorityDTO dto) {
         ensureAdmin();
-        IssuePriority priority = issuePriorityRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Priority not found"));
+        IssuePriority priority = getPriorityOrThrow(id);
         applyPriorityUpdates(priority, dto);
         IssuePriority saved = issuePriorityRepository.save(priority);
         logAction("UPDATE_PRIORITY", "issue_priorities", saved.getId(), null);
         return saved;
+    }
+
+    private IssuePriority getPriorityOrThrow(UUID id) {
+        return issuePriorityRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Priority not found"));
     }
 
     private void applyPriorityUpdates(IssuePriority priority, IssuePriorityDTO dto) {
@@ -140,12 +144,16 @@ public class AdminService {
 
     public IssueStatus updateStatus(UUID id, IssueStatusDTO dto) {
         ensureAdmin();
-        IssueStatus status = issueStatusRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Status not found"));
+        IssueStatus status = getStatusOrThrow(id);
         applyStatusUpdates(status, dto);
         IssueStatus saved = issueStatusRepository.save(status);
         logAction("UPDATE_STATUS", "issue_statuses", saved.getId(), null);
         return saved;
+    }
+
+    private IssueStatus getStatusOrThrow(UUID id) {
+        return issueStatusRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Status not found"));
     }
 
     private void applyStatusUpdates(IssueStatus status, IssueStatusDTO dto) {
