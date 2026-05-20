@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 import net.edu.modulartask.admin.SystemConfig;
 import net.edu.modulartask.admin.SystemConfigRepository;
+import net.edu.modulartask.notification.NotificationProducer;
 
 @Service
 public class UserService {
@@ -30,6 +31,9 @@ public class UserService {
     UserRepository userRepository;
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Autowired
+    private NotificationProducer notificationProducer;
 
     @Autowired
     private UserNotificationSettingsRepository userNotificationSettingsRepository;
@@ -296,6 +300,7 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(dto.newPassword()));
         userRepository.save(user);
+        notificationProducer.sendNotification("Password changed", "Your account password has been updated.", user.getId());
     }
 
     public void disableTwoFactorAuth() {
@@ -306,6 +311,7 @@ public class UserService {
         user.setTwoFactorAuthKey(null);
         user.setTwoFactorAuthEnabled(false);
         userRepository.save(user);
+        notificationProducer.sendNotification("Two-factor auth disabled", "Two-factor authentication has been disabled.", user.getId());
     }
 
     public void anonymizeCurrentUser() {
@@ -324,6 +330,7 @@ public class UserService {
         user.setOrganizationUnit(null);
         user.setActive(false);
         userRepository.save(user);
+        notificationProducer.sendNotification("Account deleted", "Your account has been deleted and anonymized.", user.getId());
     }
 
     public NotificationSettingsDTO getNotificationSettings() {

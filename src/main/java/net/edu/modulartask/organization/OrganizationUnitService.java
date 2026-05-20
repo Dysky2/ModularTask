@@ -1,6 +1,7 @@
 package net.edu.modulartask.organization;
 
 import net.edu.modulartask.exceptions.CyclicHierarchyException;
+import net.edu.modulartask.exceptions.OrganizationUnitHasChildrenException;
 import net.edu.modulartask.exceptions.OrganizationUnitNotFoundException;
 import net.edu.modulartask.exceptions.UnauthorizedOrganizationActionException;
 import net.edu.modulartask.user.User;
@@ -113,7 +114,7 @@ public class OrganizationUnitService {
         List<OrganizationUnit> children = organizationUnitRepository.findByParent(unit);
 
         if (!children.isEmpty()) {
-            throw new IllegalArgumentException("Cannot delete organization unit with children");
+            throw new OrganizationUnitHasChildrenException("Cannot delete organization unit with children");
         }
 
         List<User> usersInUnit = userRepository.findByOrganizationUnit_UnitId(unitId);

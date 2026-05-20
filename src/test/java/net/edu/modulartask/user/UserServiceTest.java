@@ -7,6 +7,7 @@ import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
 import net.edu.modulartask.organization.OrganizationUnit;
 import net.edu.modulartask.tasks.TaskHistoryRepository;
+import net.edu.modulartask.notification.NotificationProducer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,9 @@ public class UserServiceTest {
 
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Mock
+    private NotificationProducer notificationProducer;
 
     @Mock
     private SystemConfigRepository systemConfigRepository;
@@ -347,6 +351,7 @@ public class UserServiceTest {
 
         assertThat(sampleUser.getPassword()).isEqualTo("encoded");
         verify(userRepository).save(sampleUser);
+        verify(notificationProducer).sendNotification(eq("Password changed"), anyString(), eq(sampleUser.getId()));
     }
 
     @Test
@@ -362,6 +367,7 @@ public class UserServiceTest {
 
         assertThat(sampleUser.isTwoFactorAuthEnabled()).isFalse();
         assertThat(sampleUser.getTwoFactorAuthKey()).isNull();
+        verify(notificationProducer).sendNotification(eq("Two-factor auth disabled"), anyString(), eq(sampleUser.getId()));
     }
 
     @Test
@@ -376,6 +382,7 @@ public class UserServiceTest {
         assertThat(sampleUser.isActive()).isFalse();
         assertThat(sampleUser.getOrganizationUnit()).isNull();
         assertThat(sampleUser.getEmail()).contains("deleted_");
+        verify(notificationProducer).sendNotification(eq("Account deleted"), anyString(), eq(sampleUser.getId()));
     }
 
     @Test

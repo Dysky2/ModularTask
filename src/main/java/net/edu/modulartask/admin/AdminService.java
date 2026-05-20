@@ -91,6 +91,13 @@ public class AdminService {
         ensureAdmin();
         IssuePriority priority = issuePriorityRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Priority not found"));
+        applyPriorityUpdates(priority, dto);
+        IssuePriority saved = issuePriorityRepository.save(priority);
+        logAction("UPDATE_PRIORITY", "issue_priorities", saved.getId(), null);
+        return saved;
+    }
+
+    private void applyPriorityUpdates(IssuePriority priority, IssuePriorityDTO dto) {
         if (dto.name() != null && !dto.name().isBlank()) {
             priority.setName(dto.name());
         }
@@ -98,9 +105,6 @@ public class AdminService {
             priority.setColorHex(dto.colorHex());
         }
         priority.setOrderIndex(dto.orderIndex());
-        IssuePriority saved = issuePriorityRepository.save(priority);
-        logAction("UPDATE_PRIORITY", "issue_priorities", saved.getId(), null);
-        return saved;
     }
 
     public void deletePriority(UUID id) {
@@ -138,6 +142,13 @@ public class AdminService {
         ensureAdmin();
         IssueStatus status = issueStatusRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Status not found"));
+        applyStatusUpdates(status, dto);
+        IssueStatus saved = issueStatusRepository.save(status);
+        logAction("UPDATE_STATUS", "issue_statuses", saved.getId(), null);
+        return saved;
+    }
+
+    private void applyStatusUpdates(IssueStatus status, IssueStatusDTO dto) {
         if (dto.name() != null && !dto.name().isBlank()) {
             status.setName(dto.name());
         }
@@ -145,9 +156,6 @@ public class AdminService {
             status.setCategory(dto.category());
         }
         status.setOrderIndex(dto.orderIndex());
-        IssueStatus saved = issueStatusRepository.save(status);
-        logAction("UPDATE_STATUS", "issue_statuses", saved.getId(), null);
-        return saved;
     }
 
     public void deleteStatus(UUID id) {
