@@ -98,6 +98,8 @@ public class UserController {
     @PatchMapping("/settings/preferences")
     public ResponseEntity<UserPreferencesDTO> patchPreferences(@RequestBody UserPreferencesDTO userPreferencesDTO) {
         return ResponseEntity.ok(userService.updatePreferences(userPreferencesDTO));
+    }
+
     @PutMapping("/{userId}")
     public ResponseEntity<Map<String, String>> updateUser(@PathVariable(name = "userId") UUID userId,
                                                           @Valid @RequestBody UpdateUserDTO updateUserDTO) {

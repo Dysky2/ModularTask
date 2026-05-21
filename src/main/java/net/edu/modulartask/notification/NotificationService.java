@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import net.edu.modulartask.email.EmailSender;
 import net.edu.modulartask.tasks.Task;
 import net.edu.modulartask.user.User;
-import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -21,15 +20,12 @@ import java.util.UUID;
 public class NotificationService {
 
     @Autowired
-    EmailSender emailSender;
+    private EmailSender emailSender;
 
     @Autowired
-    NotificationRepository repository;
+    private NotificationRepository repository;
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
-    private UserService userService;
 
     public Notification findById(UUID notificationId) {
         return repository.findById(notificationId).orElseThrow(() -> new IllegalArgumentException("This notification is not found"));
@@ -73,9 +69,7 @@ public class NotificationService {
         });
     }
 
-    public List<Notification> getAllUnreadNotifications() {
-        User user = userService.getCurrentlyLoggedUser();
-
+    public List<Notification> getAllUnreadNotifications(User user) {
         return repository.findAllByTargetAndStatus(user, NotificationStatus.SENT);
     }
 
@@ -89,10 +83,7 @@ public class NotificationService {
         return ResponseEntity.ok(Map.of("message", "Notification read"));
     }
 
-    public ResponseEntity<Map<String, String>> markAllAsRead() {
-
-        User user = userService.getCurrentlyLoggedUser();
-
+    public ResponseEntity<Map<String, String>> markAllAsRead(User user) {
         List<Notification> notifications = repository.findAllByTarget(user);
 
         for(var notification : notifications) {

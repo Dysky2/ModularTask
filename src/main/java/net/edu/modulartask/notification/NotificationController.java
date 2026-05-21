@@ -1,5 +1,7 @@
 package net.edu.modulartask.notification;
 
+import net.edu.modulartask.user.User;
+import net.edu.modulartask.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +17,13 @@ public class NotificationController {
     @Autowired
     NotificationService notificationService;
 
+    @Autowired
+    private UserService userService;
+
     @GetMapping("/unread")
     public List<Notification> getAllUnreadNotifications() {
-        return notificationService.getAllUnreadNotifications();
+        User user = userService.getCurrentlyLoggedUser();
+        return notificationService.getAllUnreadNotifications(user);
     }
 
     @PostMapping("/{notificationId}/markAsRead")
@@ -27,7 +33,8 @@ public class NotificationController {
 
     @PostMapping("/markAllAsRead")
     public ResponseEntity<Map<String, String>> markAllAsRead() {
-        return notificationService.markAllAsRead();
+        User user = userService.getCurrentlyLoggedUser();
+        return notificationService.markAllAsRead(user);
     }
 
 }

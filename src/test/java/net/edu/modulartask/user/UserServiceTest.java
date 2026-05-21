@@ -5,9 +5,9 @@ import net.edu.modulartask.exceptions.AccountDisabledException;
 import net.edu.modulartask.exceptions.DuplicateEmailException;
 import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
+import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.organization.OrganizationUnit;
 import net.edu.modulartask.tasks.TaskHistoryRepository;
-import net.edu.modulartask.notification.NotificationProducer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +37,7 @@ public class UserServiceTest {
     private BCryptPasswordEncoder passwordEncoder;
 
     @Mock
-    private NotificationProducer notificationProducer;
+    private NotificationService notificationService;
 
     @Mock
     private SystemConfigRepository systemConfigRepository;
@@ -351,7 +351,7 @@ public class UserServiceTest {
 
         assertThat(sampleUser.getPassword()).isEqualTo("encoded");
         verify(userRepository).save(sampleUser);
-        verify(notificationProducer).sendNotification(eq("Password changed"), anyString(), eq(sampleUser.getId()));
+        verify(notificationService).createNotification(eq("Password changed"), anyString(), eq(sampleUser), eq(sampleUser));
     }
 
     @Test
@@ -367,7 +367,7 @@ public class UserServiceTest {
 
         assertThat(sampleUser.isTwoFactorAuthEnabled()).isFalse();
         assertThat(sampleUser.getTwoFactorAuthKey()).isNull();
-        verify(notificationProducer).sendNotification(eq("Two-factor auth disabled"), anyString(), eq(sampleUser.getId()));
+        verify(notificationService).createNotification(eq("Two-factor auth disabled"), anyString(), eq(sampleUser), eq(sampleUser));
     }
 
     @Test
@@ -382,7 +382,7 @@ public class UserServiceTest {
         assertThat(sampleUser.isActive()).isFalse();
         assertThat(sampleUser.getOrganizationUnit()).isNull();
         assertThat(sampleUser.getEmail()).contains("deleted_");
-        verify(notificationProducer).sendNotification(eq("Account deleted"), anyString(), eq(sampleUser.getId()));
+        verify(notificationService).createNotification(eq("Account deleted"), anyString(), eq(sampleUser), eq(sampleUser));
     }
 
     @Test

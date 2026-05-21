@@ -8,10 +8,12 @@ import net.edu.modulartask.exceptions.DuplicateUsernameException;
 import net.edu.modulartask.exceptions.UserNotFoundException;
 import net.edu.modulartask.exceptions.UnauthorizedAdminActionException;
 import net.edu.modulartask.exceptions.UnauthorizedException;
+import net.edu.modulartask.notification.NotificationService;
 import net.edu.modulartask.organization.OrganizationUnit;
 import net.edu.modulartask.tasks.TaskHistory;
 import net.edu.modulartask.tasks.TaskHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,17 +26,18 @@ import java.util.Map;
 import java.util.UUID;
 import net.edu.modulartask.admin.SystemConfig;
 import net.edu.modulartask.admin.SystemConfigRepository;
-import net.edu.modulartask.notification.NotificationProducer;
 
 @Service
 public class UserService {
     @Autowired
-    UserRepository userRepository;
+    private UserRepository userRepository;
+
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    private NotificationProducer notificationProducer;
+    @Lazy
+    private NotificationService notificationService;
 
     @Autowired
     private UserNotificationSettingsRepository userNotificationSettingsRepository;
@@ -46,10 +49,10 @@ public class UserService {
     private SystemConfigRepository systemConfigRepository;
 
     @Autowired
-    TwoFactorService twoFactorService;
+    private TwoFactorService twoFactorService;
 
     @Autowired
-    TaskHistoryRepository taskHistoryRepository;
+    private TaskHistoryRepository taskHistoryRepository;
 
     public List<User> getAllUsers() {
         ensureAdminPrivileges();
@@ -301,7 +304,7 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(dto.newPassword()));
         userRepository.save(user);
-        notificationProducer.sendNotification("Password changed", "Your account password has been updated.", user.getId());
+        notificationService.createNotification("Password changed", "Your account password has been updated.", user, user);
     }
 
     public void disableTwoFactorAuth() {
@@ -312,7 +315,7 @@ public class UserService {
         user.setTwoFactorAuthKey(null);
         user.setTwoFactorAuthEnabled(false);
         userRepository.save(user);
-        notificationProducer.sendNotification("Two-factor auth disabled", "Two-factor authentication has been disabled.", user.getId());
+        notificationService.createNotification("Two-factor auth disabled", "Two-factor authentication has been disabled.", user, user);
     }
 
     public void anonymizeCurrentUser() {
@@ -331,7 +334,7 @@ public class UserService {
         user.setOrganizationUnit(null);
         user.setActive(false);
         userRepository.save(user);
-        notificationProducer.sendNotification("Account deleted", "Your account has been deleted and anonymized.", user.getId());
+        notificationService.createNotification("Account deleted", "Your account has been deleted and anonymized.", user, user);
     }
 
     public NotificationSettingsDTO getNotificationSettings() {
