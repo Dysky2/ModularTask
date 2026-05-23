@@ -11,7 +11,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin("http://localhost:5173")
 public class UserController {
     @Autowired
     UserService userService;
