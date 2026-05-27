@@ -11,7 +11,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/task-templates")
-@CrossOrigin("http://localhost:5173")
 public class TaskTemplateController {
 
     @Autowired
